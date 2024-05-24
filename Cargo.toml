@@ -1,0 +1,10 @@
+[package]
+name = "tenma"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.78.0"
+
+[dependencies]
+bevy = "0.13.2"
+derivative = "2.2.0"
+rand = "0.8.5"
