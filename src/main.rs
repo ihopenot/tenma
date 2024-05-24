@@ -5,7 +5,7 @@ mod ui;
 mod resource;
 use config::GameState;
 use bevy::prelude::*;
-use resource::GameTextures;
+use resource::{GameTextures, Rule};
 
 fn main() {
     App::new()
@@ -28,5 +28,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         windboard: asset_server.load("textures/windboard.png"),
     };
     commands.insert_resource(game_textures);
+
+    let game_rule = Rule::default();
+    commands.insert_resource(game_rule);
 
 }

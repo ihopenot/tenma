@@ -2,7 +2,8 @@ use bevy::{math::f32, prelude::*, ui::widget::UiImageSize};
 use derivative::Derivative;
 use rand::Rng;
 
-use crate::config::{GameState, InGameState, GameRule};
+use crate::config::{GameState, InGameState};
+use crate::resource::Rule;
 use crate::ui::ui_plugin;
 
 #[derive(Resource, Derivative)]
@@ -16,15 +17,23 @@ pub struct GameStatistics {
     pub uradora: [i32; 4],
 
     pub bakaze: u8,
-    #[derivative(Default(value = "[4; 34]"))]
-    pub yama: [u8; 34],
+    #[derivative(Default(value = "[4; 37]"))]
+    pub yama: [u8; 37],
     #[derivative(Default(value = "136"))]
     pub remain: u8,
 }
 
 impl GameStatistics {
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, game_rule: Res<Rule>) {
         *self = GameStatistics::default();
+
+        // 有赤规则
+        game_rule.akaari.then(|| {
+            self.yama[0] = 4;
+            self.yama[8] = 4;
+            self.yama[17] = 4;
+            self.yama[26] = 4;
+        });
     }
 
     pub fn draw_tile(&mut self) -> u8 {
@@ -45,9 +54,9 @@ impl GameStatistics {
         tile as u8
     }
 
-    pub fn can_draw_tile(&self) -> bool {
-        self.remain > GameRule.ace_remain
-    }
+    // pub fn can_draw_tile(&self) -> bool {
+    //     self.remain > GameRule.ace_remain
+    // }
 }
 
 #[derive(Derivative)]
@@ -56,8 +65,8 @@ pub struct PlayerStatus {
     #[derivative(Default(value = "25000"))]
     pub score: i32,
     pub jikaze: u8,
-    #[derivative(Default(value = "[0; 34]"))]
-    pub tehai: [u8; 34],
+    #[derivative(Default(value = "[0; 37]"))]
+    pub tehai: [u8; 37],
 }
 
 #[derive(Resource, Default)]
@@ -80,8 +89,8 @@ fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>, mut ingame
     ingamestate.set(InGameState::GeneralUI);
 }
 
-fn prepare_game(mut game_statistics: ResMut<GameStatistics>, mut player_statistics: ResMut<PlayerStatistics>) {
-    game_statistics.reset();
+fn prepare_game(mut game_statistics: ResMut<GameStatistics>, mut player_statistics: ResMut<PlayerStatistics>, game_rule: Res<Rule>) {
+    game_statistics.reset(game_rule);
     player_statistics.self_id = rand::thread_rng().gen_range(0..4);
     for i in 0..4 {
         for j in 0..13 {

@@ -1,4 +1,5 @@
 use bevy::{ecs::schedule::States, prelude::default};
+use derivative::Derivative;
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
 pub enum GameState {
@@ -31,8 +32,3 @@ pub enum MenuState {
     #[default]
     Disabled,
 }
-
-pub struct Rule {
-    pub ace_remain: u8,
-}
-pub const GameRule: Rule = Rule { ace_remain: 14 };
