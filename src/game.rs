@@ -7,19 +7,19 @@ use crate::ui::ui_plugin;
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
-struct GameStatistics {
+pub struct GameStatistics {
     // 本场
-    honba: u16,
+    pub honba: u16,
     // 局
-    kyoku: u16,
-    dora: [i32; 4],
-    uradora: [i32; 4],
+    pub kyoku: u16,
+    pub dora: [i32; 4],
+    pub uradora: [i32; 4],
 
-    bakaze: u8,
+    pub bakaze: u8,
     #[derivative(Default(value = "[4; 34]"))]
-    yama: [u8; 34],
+    pub yama: [u8; 34],
     #[derivative(Default(value = "136"))]
-    remain: u8,
+    pub remain: u8,
 }
 
 impl GameStatistics {
@@ -52,22 +52,19 @@ impl GameStatistics {
 
 #[derive(Derivative)]
 #[derivative(Default)]
-struct PlayerStatus {
+pub struct PlayerStatus {
     #[derivative(Default(value = "25000"))]
-    score: i32,
-    jikaze: u8,
+    pub score: i32,
+    pub jikaze: u8,
     #[derivative(Default(value = "[0; 34]"))]
-    tehai: [u8; 34],
+    pub tehai: [u8; 34],
 }
 
 #[derive(Resource, Default)]
-struct PlayerStatistics {
-    status: [PlayerStatus; 4],
-    self_id: u8,
+pub struct PlayerStatistics {
+    pub status: [PlayerStatus; 4],
+    pub self_id: u8,
 }
-
-#[derive(Component)]
-struct GameInfoPublic;
 
 pub fn game_plugin(app: &mut App) {
     app

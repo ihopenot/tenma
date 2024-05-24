@@ -2,8 +2,10 @@ mod menu;
 mod config;
 mod game;
 mod ui;
+mod resource;
 use config::GameState;
 use bevy::prelude::*;
+use resource::GameTextures;
 
 fn main() {
     App::new()
@@ -15,6 +17,16 @@ fn main() {
     .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
+
+    let game_textures = GameTextures {
+        background: asset_server.load("textures/background.png"),
+        tile: std::array::from_fn(|_i| {
+            asset_server.load(format!("textures/tiles/{}.png", _i))
+        }),
+        windboard: asset_server.load("textures/windboard.png"),
+    };
+    commands.insert_resource(game_textures);
+
 }
