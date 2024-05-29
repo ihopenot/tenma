@@ -2,8 +2,9 @@ use bevy::{math::f32, prelude::*, ui::widget::UiImageSize};
 use derivative::Derivative;
 use rand::Rng;
 
-use crate::config::{GameState, InGameState};
+use crate::config::{Dahai, GameState, InGameState};
 use crate::resource::Rule;
+use crate::{tu8, tuz};
 use crate::ui::ui_plugin;
 
 #[derive(Resource, Derivative)]
@@ -17,8 +18,8 @@ pub struct Game {
     pub uradora: [i32; 4],
 
     pub bakaze: u8,
-    #[derivative(Default(value = "[4; 37]"))]
-    pub yama: [u8; 37],
+    #[derivative(Default(value = "[0; tuz!(?)]"))]
+    pub yama: [u8; tuz!(?)],
     #[derivative(Default(value = "136"))]
     pub remain: u8,
     
@@ -30,13 +31,23 @@ impl Game {
     pub fn reset(&mut self, game_rule: Res<Rule>) {
         *self = Game::default();
 
+        for i in 0..tuz!(?) {
+            self.yama[i] = 4;
+        }
+
         // 有赤规则
-        game_rule.akaari.then(|| {
-            self.yama[0] = 4;
-            self.yama[8] = 4;
-            self.yama[17] = 4;
-            self.yama[26] = 4;
-        });
+        if game_rule.akaari {
+            self.yama[tuz!(5m)] = 3;
+            self.yama[tuz!(5p)] = 3;
+            self.yama[tuz!(5s)] = 3;
+            self.yama[tuz!(5mr)] = 1;
+            self.yama[tuz!(5pr)] = 1;
+            self.yama[tuz!(5sr)] = 1;
+        } else {
+            self.yama[tuz!(5mr)] = 0;
+            self.yama[tuz!(5pr)] = 0;
+            self.yama[tuz!(5sr)] = 0;
+        }
     }
 
     pub fn draw_tile(&mut self) -> u8 {
@@ -45,7 +56,7 @@ impl Game {
 
         let mut sum = 0;
         let mut tile = 0;
-        for i in 0..34 {
+        for i in 0..tuz!(?) {
             sum += self.yama[i];
             if sum > tile_id {
                 tile = i;
@@ -58,9 +69,9 @@ impl Game {
     }
 
     pub fn dahai(&mut self, player: u8, slot: u8) {
-        let tile = self.status[player as usize].tehai[slot as usize];
-        self.status[player as usize].tehai[slot as usize] = 0;
-        self.status[player as usize].tehai[slot as usize] = self.draw_tile();
+        self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tsumo;
+        self.status[player as usize].tsumo = tu8!(-);
+        println!("Player {} dahai {}", player, slot)
     }
     // pub fn can_draw_tile(&self) -> bool {
     //     self.remain > GameRule.ace_remain
@@ -75,6 +86,7 @@ pub struct PlayerStatus {
     pub jikaze: u8,
     #[derivative(Default(value = "[0; 37]"))]
     pub tehai: [u8; 37],
+    pub tsumo: u8,
 }
 
 pub fn game_plugin(app: &mut App) {
@@ -83,7 +95,8 @@ pub fn game_plugin(app: &mut App) {
     .init_state::<InGameState>()
     .add_plugins(ui_plugin)
     .add_systems(OnEnter(GameState::Game), setup_game)
-    .add_systems(OnEnter(InGameState::GeneralUI), prepare_game);
+    .add_systems(OnEnter(InGameState::GeneralUI), prepare_game)
+    .add_systems(Update, game_dahai.run_if(on_event::<Dahai>()));
 }
 
 fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>, mut ingamestate: ResMut<NextState<InGameState>>) {
@@ -92,10 +105,22 @@ fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>, mut ingame
 
 fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>) {
     game.reset(game_rule);
-    game.self_id = rand::thread_rng().gen_range(0..4);
+
+    #[cfg(feature = "debug")]
+    let player_id = 0;
+    #[cfg(not(feature = "debug"))]
+    let player_id = rand::thread_rng().gen_range(0..4);
+    game.self_id = player_id;
+
     for i in 0..4 {
         for j in 0..13 {
             game.status[i].tehai[j] = game.draw_tile();
         }
+    }
+}
+
+fn game_dahai(mut game: ResMut<Game>, mut dahai: EventReader<Dahai>) {
+    for &Dahai{player, slot} in dahai.read() {
+        game.dahai(player, slot);
     }
 }

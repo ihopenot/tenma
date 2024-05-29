@@ -1,16 +1,17 @@
-use crate::config::{Dahai, GameState, InGameState};
+use crate::config::{Dahai, DahaiTile, GameState, InGameState, TileClicked};
 use crate::game::{self, Game};
 use crate::resource::GameTextures;
+use bevy::ecs::query;
 use bevy::transform::commands;
 use bevy::{prelude::*, transform};
 use bevy_mod_picking::prelude::*;
 
-const tile_width: f32 = 90.0;
-const tile_height: f32 = 102.0;
-const tile_scale: f32 = 0.7;
-const windboard_width: f32 = 400.0;
-const windboard_height: f32 = 400.0;
-const windboard_scale: f32 = 0.5;
+const TILE_WIDTH: f32 = 90.0;
+const TILE_HEIGHT: f32 = 102.0;
+const TILE_SCALE: f32 = 0.7;
+const WB_WIDTH: f32 = 400.0;
+const WB_HEIGHT: f32 = 400.0;
+const WB_SCALE: f32 = 0.5;
 
 #[derive(Component)]
 struct GameUI;
@@ -20,7 +21,9 @@ struct WindBoard;
 
 pub fn ui_plugin(app: &mut App) {
     app.add_systems(OnEnter(InGameState::GeneralUI), setup_general_game_ui)
-        .add_systems(OnEnter(InGameState::GameObjectUI), setup_gameobject_ui);
+        .add_systems(OnEnter(InGameState::GameObjectUI), setup_gameobject_ui)
+        .add_systems(Update, game_dahai.run_if(in_state(InGameState::SelfPlay)))
+        .add_event::<Dahai>();
 }
 
 fn setup_general_game_ui(
@@ -32,7 +35,7 @@ fn setup_general_game_ui(
         SpriteBundle {
             texture: game_texture.windboard.clone(),
             transform: Transform {
-                scale: Vec3::splat(windboard_scale),
+                scale: Vec3::splat(WB_SCALE),
                 rotation: Quat::from_rotation_z(0.0),
                 ..default()
             },
@@ -45,7 +48,7 @@ fn setup_general_game_ui(
 
 #[derive(Component)]
 struct TileBind {
-    pub val: u8,
+    pub player: u8,
     pub slot: u8,
 }
 
@@ -61,9 +64,9 @@ fn setup_gameobject_ui(
             SpriteBundle {
                 texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
                 transform: Transform {
-                    scale: Vec3::splat(tile_scale),
+                    scale: Vec3::splat(TILE_SCALE),
                     translation: Vec3::new(
-                        tile_width * tile_scale * 0.8 * (i as f32 - 7.5),
+                        TILE_WIDTH * TILE_SCALE * 0.8 * (i as f32 - 7.5),
                         -200.0,
                         i as f32,
                     ),
@@ -72,20 +75,17 @@ fn setup_gameobject_ui(
                 ..default()
             },
             TileBind {
-                val: self_status.tehai[i],
+                player: game.self_id,
                 slot: i as u8,
             },
             PickableBundle::default(),
             On::<Pointer<Over>>::target_component_mut::<Transform>(|_, transform| {
-                transform.translation.y += tile_height * tile_scale * 0.3;
+                transform.translation.y += TILE_HEIGHT * TILE_SCALE * 0.3;
             }),
             On::<Pointer<Out>>::target_component_mut::<Transform>(|_, transform| {
-                transform.translation.y -= tile_height * tile_scale * 0.3;
+                transform.translation.y -= TILE_HEIGHT * TILE_SCALE * 0.3;
             }),
-            On::<Pointer<Click>>::target_insert(Dahai{
-                slot: i as u8,
-                player: game.self_id,
-            }),
+            On::<Pointer<Click>>::target_insert(TileClicked),
             // On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
             //     transform.translation += Vec3::new(drag.delta.x, -drag.delta.y, 0.0);
             // }),
@@ -93,5 +93,37 @@ fn setup_gameobject_ui(
             //     println!("{:?}", event.pointer_location);
             // }),
         ));
+    }
+}
+
+//TODO: 打牌UI变化
+fn game_dahai(mut dahaiwriter: EventWriter<Dahai>, query: Query<&TileBind, With<DahaiTile>>) {
+    let tilebind = query.single();
+    dahaiwriter.send(Dahai {
+        player: tilebind.player,
+        slot: tilebind.slot,
+    });
+}
+
+fn handle_tile_click(
+    query: Query<Entity, With<TileClicked>>,
+    mut commands: Commands,
+    state: Res<State<InGameState>>,
+) {
+    // 一帧只处理一个点击事件
+    let mut first = true;
+    for entity in query.iter() {
+        commands.entity(entity).remove::<TileClicked>();
+        if !first {
+            continue;
+        }
+
+        match state.get() {
+            InGameState::SelfPlay => {
+                commands.entity(entity).insert(DahaiTile);
+            }
+            _ => {}
+        }
+        first = false;
     }
 }

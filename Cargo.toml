@@ -13,3 +13,6 @@ rand = "0.8.5"
 [[example]]
 name="test"
 path="src/test.rs"
+
+[features]
+debug = []

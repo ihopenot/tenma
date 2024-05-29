@@ -3,6 +3,7 @@ mod config;
 mod game;
 mod ui;
 mod resource;
+mod macros;
 use bevy_mod_picking::prelude::*;
 use config::GameState;
 use bevy::prelude::*;

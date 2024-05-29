@@ -34,7 +34,13 @@ pub enum MenuState {
 }
 
 #[derive(Component, Debug, Clone, Copy)]
+pub struct DahaiTile;
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct TileClicked;
+
+#[derive(Event, Debug)]
 pub struct Dahai {
-    pub slot: u8,
     pub player: u8,
+    pub slot: u8,
 }
