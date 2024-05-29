@@ -4,25 +4,25 @@ use rand::Rng;
 
 use crate::config::{Dahai, GameState, InGameState};
 use crate::resource::Rule;
-use crate::{tu8, tuz};
 use crate::ui::ui_plugin;
+use crate::{tu8, tuz};
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
 pub struct Game {
     // 本场
-    pub honba: u16,
+    pub honba: u8,
     // 局
-    pub kyoku: u16,
-    pub dora: [i32; 4],
-    pub uradora: [i32; 4],
+    pub kyoku: u8,
+    pub dora: [u8; 4],
+    pub uradora: [u8; 4],
 
     pub bakaze: u8,
     #[derivative(Default(value = "[0; tuz!(?)]"))]
     pub yama: [u8; tuz!(?)],
     #[derivative(Default(value = "136"))]
     pub remain: u8,
-    
+
     pub status: [PlayerStatus; 4],
     pub self_id: u8,
 }
@@ -48,6 +48,13 @@ impl Game {
             self.yama[tuz!(5pr)] = 0;
             self.yama[tuz!(5sr)] = 0;
         }
+
+        // 决定谁是东起
+        #[cfg(feature = "debug")]
+        let player_id = 0;
+        #[cfg(not(feature = "debug"))]
+        let player_id = rand::thread_rng().gen_range(0..4);
+        self.self_id = player_id;
     }
 
     pub fn draw_tile(&mut self) -> u8 {
@@ -68,10 +75,52 @@ impl Game {
         tile as u8
     }
 
-    pub fn dahai(&mut self, player: u8, slot: u8) {
+    pub fn start_new_game(&mut self) {
+        for i in 0..4 {
+            for j in 0..13 {
+                self.status[i].tehai[j] = self.draw_tile();
+            }
+        }
+    }
+
+    pub fn can_naki(&self) -> bool {
+        #[cfg(feature = "debug")]
+        return false;
+
+        #[cfg(not(feature = "debug"))]
+        todo!("can_naki")
+    }
+
+    pub fn dahai(
+        &mut self,
+        player: u8,
+        slot: u8,
+        state: Res<State<InGameState>>,
+        mut next_state: ResMut<NextState<InGameState>>,
+    ) {
         self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tsumo;
         self.status[player as usize].tsumo = tu8!(-);
-        println!("Player {} dahai {}", player, slot)
+        println!("Player {} dahai {}", player, slot);
+
+        if self.can_naki() {
+            next_state.set(InGameState::WaitNaki);
+        } else {
+            match state.get() {
+                InGameState::SelfPlay => {
+                    next_state.set(InGameState::RightPlay);
+                }
+                InGameState::RightPlay => {
+                    next_state.set(InGameState::AcrossPlay);
+                }
+                InGameState::AcrossPlay => {
+                    next_state.set(InGameState::LeftPlay);
+                }
+                InGameState::LeftPlay => {
+                    next_state.set(InGameState::SelfPlay);
+                }
+                _ => {}
+            }
+        }
     }
     // pub fn can_draw_tile(&self) -> bool {
     //     self.remain > GameRule.ace_remain
@@ -90,37 +139,36 @@ pub struct PlayerStatus {
 }
 
 pub fn game_plugin(app: &mut App) {
-    app
-    .insert_resource(Game{..default()})
-    .init_state::<InGameState>()
-    .add_plugins(ui_plugin)
-    .add_systems(OnEnter(GameState::Game), setup_game)
-    .add_systems(OnEnter(InGameState::GeneralUI), prepare_game)
-    .add_systems(Update, game_dahai.run_if(on_event::<Dahai>()));
+    app.insert_resource(Game { ..default() })
+        .init_state::<InGameState>()
+        .add_plugins(ui_plugin)
+        .add_systems(OnEnter(GameState::Game), setup_game)
+        .add_systems(OnEnter(InGameState::GeneralUI), prepare_game)
+        .add_systems(Update, game_dahai.run_if(on_event::<Dahai>()));
 }
 
-fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>, mut ingamestate: ResMut<NextState<InGameState>>) {
+fn setup_game(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut ingamestate: ResMut<NextState<InGameState>>,
+) {
     ingamestate.set(InGameState::GeneralUI);
 }
 
 fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>) {
     game.reset(game_rule);
-
-    #[cfg(feature = "debug")]
-    let player_id = 0;
-    #[cfg(not(feature = "debug"))]
-    let player_id = rand::thread_rng().gen_range(0..4);
-    game.self_id = player_id;
-
-    for i in 0..4 {
-        for j in 0..13 {
-            game.status[i].tehai[j] = game.draw_tile();
-        }
-    }
+    game.start_new_game();
 }
 
-fn game_dahai(mut game: ResMut<Game>, mut dahai: EventReader<Dahai>) {
-    for &Dahai{player, slot} in dahai.read() {
-        game.dahai(player, slot);
+fn game_dahai(
+    mut game: ResMut<Game>,
+    mut dahai: EventReader<Dahai>,
+    state: Res<State<InGameState>>,
+    next_state: ResMut<NextState<InGameState>>,
+) {
+    // 只处理一次打牌
+    for &Dahai { player, slot } in dahai.read() {
+        game.dahai(player, slot, state, next_state);
+        break;
     }
 }

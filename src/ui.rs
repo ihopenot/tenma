@@ -22,7 +22,15 @@ struct WindBoard;
 pub fn ui_plugin(app: &mut App) {
     app.add_systems(OnEnter(InGameState::GeneralUI), setup_general_game_ui)
         .add_systems(OnEnter(InGameState::GameObjectUI), setup_gameobject_ui)
-        .add_systems(Update, game_dahai.run_if(in_state(InGameState::SelfPlay)))
+        .add_systems(
+            Update,
+            (
+                game_dahai.run_if(
+                    in_state(InGameState::SelfPlay).and_then(any_with_component::<DahaiTile>),
+                ),
+                handle_tile_click,
+            ),
+        )
         .add_event::<Dahai>();
 }
 
@@ -56,7 +64,7 @@ fn setup_gameobject_ui(
     mut commands: Commands,
     game_texture: Res<GameTextures>,
     game: Res<Game>,
-    mut ingamestate: ResMut<NextState<InGameState>>,
+    mut next_state: ResMut<NextState<InGameState>>,
 ) {
     let self_status = &game.status[game.self_id as usize];
     for i in 0..14 {
@@ -94,6 +102,17 @@ fn setup_gameobject_ui(
             // }),
         ));
     }
+
+    next_state.set(match (game.kyoku - game.self_id) % 4 {
+        0 => InGameState::SelfPlay,
+        1 => InGameState::LeftPlay,
+        2 => InGameState::AcrossPlay,
+        3 => InGameState::RightPlay,
+        _ => {
+            assert!(false, "unreachable!");
+            InGameState::Disabled
+        }
+    })
 }
 
 //TODO: 打牌UI变化
@@ -120,6 +139,7 @@ fn handle_tile_click(
 
         match state.get() {
             InGameState::SelfPlay => {
+                println!("add DahaiTile");
                 commands.entity(entity).insert(DahaiTile);
             }
             _ => {}
