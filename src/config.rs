@@ -1,4 +1,4 @@
-use bevy::{ecs::schedule::States, prelude::default};
+use bevy::prelude::*;
 use derivative::Derivative;
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
@@ -31,4 +31,10 @@ pub enum MenuState {
     // SettingsSound,
     #[default]
     Disabled,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Dahai {
+    pub slot: u8,
+    pub player: u8,
 }

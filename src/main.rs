@@ -3,6 +3,7 @@ mod config;
 mod game;
 mod ui;
 mod resource;
+use bevy_mod_picking::prelude::*;
 use config::GameState;
 use bevy::prelude::*;
 use resource::{GameTextures, Rule};
@@ -11,6 +12,8 @@ fn main() {
     App::new()
     .init_state::<GameState>()
     .add_plugins(bevy::DefaultPlugins)
+    .add_plugins(DefaultPickingPlugins)
+    .insert_resource(DebugPickingMode::Normal)
     .add_plugins(menu::menu_plugin)
     .add_plugins(game::game_plugin)
     .add_systems(Startup, setup)

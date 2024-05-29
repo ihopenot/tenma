@@ -8,7 +8,7 @@ use crate::ui::ui_plugin;
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
-pub struct GameStatistics {
+pub struct Game {
     // 本场
     pub honba: u16,
     // 局
@@ -21,11 +21,14 @@ pub struct GameStatistics {
     pub yama: [u8; 37],
     #[derivative(Default(value = "136"))]
     pub remain: u8,
+    
+    pub status: [PlayerStatus; 4],
+    pub self_id: u8,
 }
 
-impl GameStatistics {
+impl Game {
     pub fn reset(&mut self, game_rule: Res<Rule>) {
-        *self = GameStatistics::default();
+        *self = Game::default();
 
         // 有赤规则
         game_rule.akaari.then(|| {
@@ -54,6 +57,11 @@ impl GameStatistics {
         tile as u8
     }
 
+    pub fn dahai(&mut self, player: u8, slot: u8) {
+        let tile = self.status[player as usize].tehai[slot as usize];
+        self.status[player as usize].tehai[slot as usize] = 0;
+        self.status[player as usize].tehai[slot as usize] = self.draw_tile();
+    }
     // pub fn can_draw_tile(&self) -> bool {
     //     self.remain > GameRule.ace_remain
     // }
@@ -69,16 +77,9 @@ pub struct PlayerStatus {
     pub tehai: [u8; 37],
 }
 
-#[derive(Resource, Default)]
-pub struct PlayerStatistics {
-    pub status: [PlayerStatus; 4],
-    pub self_id: u8,
-}
-
 pub fn game_plugin(app: &mut App) {
     app
-    .insert_resource(GameStatistics{..default()})
-    .insert_resource(PlayerStatistics{..default()})
+    .insert_resource(Game{..default()})
     .init_state::<InGameState>()
     .add_plugins(ui_plugin)
     .add_systems(OnEnter(GameState::Game), setup_game)
@@ -89,12 +90,12 @@ fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>, mut ingame
     ingamestate.set(InGameState::GeneralUI);
 }
 
-fn prepare_game(mut game_statistics: ResMut<GameStatistics>, mut player_statistics: ResMut<PlayerStatistics>, game_rule: Res<Rule>) {
-    game_statistics.reset(game_rule);
-    player_statistics.self_id = rand::thread_rng().gen_range(0..4);
+fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>) {
+    game.reset(game_rule);
+    game.self_id = rand::thread_rng().gen_range(0..4);
     for i in 0..4 {
         for j in 0..13 {
-            player_statistics.status[i].tehai[j] = game_statistics.draw_tile();
+            game.status[i].tehai[j] = game.draw_tile();
         }
     }
 }
