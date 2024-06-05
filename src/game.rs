@@ -2,10 +2,10 @@ use bevy::{math::f32, prelude::*, ui::widget::UiImageSize};
 use derivative::Derivative;
 use rand::Rng;
 
-use crate::config::{Dahai, GameState, InGameState};
+use crate::config::{Dahai, GameState, InGameState, PLAY_MAP, TSUMO_MAP, NAKI_MAP};
 use crate::resource::Rule;
 use crate::ui::ui_plugin;
-use crate::{tu8, tuz};
+use crate::{checkstate, state2id, tu8, tuz, id2state, nextplayer};
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
@@ -25,6 +25,19 @@ pub struct Game {
 
     pub status: [PlayerStatus; 4],
     pub self_id: u8,
+    pub ingamestate: InGameState,
+}
+
+pub enum GameError {
+    InvalidPlayer,
+    InvalidState,
+}
+
+pub enum NakiType {
+    Chi,
+    Pon,
+    Kang,
+    Pei
 }
 
 impl Game {
@@ -81,6 +94,7 @@ impl Game {
                 self.status[i].tehai[j] = self.draw_tile();
             }
         }
+        self.ingamestate = InGameState::SelfTsumo;
     }
 
     pub fn can_naki(&self) -> bool {
@@ -91,36 +105,53 @@ impl Game {
         todo!("can_naki")
     }
 
+    pub fn tsumo(&mut self, player: u8) -> Result<u8, GameError> {
+        if player != state2id!(self.ingamestate) {
+            return Err(GameError::InvalidPlayer);
+        }
+        let tile = self.draw_tile();
+        self.status[player as usize].tsumo = tile;
+        println!("Player {} tsumo {}", player, tile);
+        self.ingamestate = id2state!(player, play);
+        Ok(tile)
+    }
+
     pub fn dahai(
         &mut self,
         player: u8,
         slot: u8,
-        state: Res<State<InGameState>>,
-        mut next_state: ResMut<NextState<InGameState>>,
-    ) {
+    ) -> Result<(), GameError> {
+        let current_player = state2id!(self.ingamestate);
+        if player != current_player {
+            return Err(GameError::InvalidPlayer);
+        }
+        if !checkstate!(self.ingamestate, play) {
+            return Err(GameError::InvalidState);
+        }
+
+        // 如果刚鸣牌，会直接往手里塞一张空白牌
         self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tsumo;
         self.status[player as usize].tsumo = tu8!(-);
         println!("Player {} dahai {}", player, slot);
 
         if self.can_naki() {
-            next_state.set(InGameState::WaitNaki);
+            todo!("naki")
         } else {
-            match state.get() {
-                InGameState::SelfPlay => {
-                    next_state.set(InGameState::RightPlay);
-                }
-                InGameState::RightPlay => {
-                    next_state.set(InGameState::AcrossPlay);
-                }
-                InGameState::AcrossPlay => {
-                    next_state.set(InGameState::LeftPlay);
-                }
-                InGameState::LeftPlay => {
-                    next_state.set(InGameState::SelfPlay);
-                }
-                _ => {}
-            }
+            self.ingamestate = id2state!(nextplayer!(current_player), tsumo);
         }
+        Ok(())
+    }
+
+    pub fn naki(
+        &mut self,
+        player: u8,
+        nakitype: NakiType,
+    ) {
+        #[cfg(feature = "debug")]
+        return;
+
+        #[cfg(not(feature = "debug"))]
+        todo!("naki")
     }
     // pub fn can_draw_tile(&self) -> bool {
     //     self.remain > GameRule.ace_remain
@@ -144,7 +175,29 @@ pub fn game_plugin(app: &mut App) {
         .add_plugins(ui_plugin)
         .add_systems(OnEnter(GameState::Game), setup_game)
         .add_systems(OnEnter(InGameState::GeneralUI), prepare_game)
+        .add_systems(OnEnter(InGameState::SelfTsumo), game_tsumo)
+        .add_systems(OnEnter(InGameState::RightTsumo), game_tsumo)
+        .add_systems(OnEnter(InGameState::AcrossTsumo), game_tsumo)
+        .add_systems(OnEnter(InGameState::LeftTsumo), game_tsumo)
+        .add_systems(OnEnter(InGameState::LeftPlay), wait_player)
+        .add_systems(OnEnter(InGameState::RightPlay), wait_player)
+        .add_systems(OnEnter(InGameState::AcrossPlay), wait_player)
         .add_systems(Update, game_dahai.run_if(on_event::<Dahai>()));
+}
+
+fn wait_player(
+    mut commands: Commands,
+    game: ResMut<Game>,
+    state: Res<State<InGameState>>,
+    mut next_state: ResMut<NextState<InGameState>>,
+) {
+    todo!("wait_player")
+}
+
+fn game_tsumo(mut game: ResMut<Game>, state: Res<State<InGameState>>, mut next_state: ResMut<NextState<InGameState>>) {
+    let player = state2id!(state.get());
+    let res = game.tsumo(player);
+    next_state.set(game.ingamestate);
 }
 
 fn setup_game(
@@ -155,20 +208,22 @@ fn setup_game(
     ingamestate.set(InGameState::GeneralUI);
 }
 
-fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>) {
+fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>, mut next_state: ResMut<NextState<InGameState>>) {
     game.reset(game_rule);
     game.start_new_game();
+    next_state.set(game.ingamestate)
 }
 
 fn game_dahai(
     mut game: ResMut<Game>,
     mut dahai: EventReader<Dahai>,
     state: Res<State<InGameState>>,
-    next_state: ResMut<NextState<InGameState>>,
+    mut next_state: ResMut<NextState<InGameState>>,
 ) {
     // 只处理一次打牌
     for &Dahai { player, slot } in dahai.read() {
-        game.dahai(player, slot, state, next_state);
+        game.dahai(player, slot);
+        next_state.set(game.ingamestate);
         break;
     }
 }

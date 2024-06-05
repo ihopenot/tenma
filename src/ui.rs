@@ -1,4 +1,4 @@
-use crate::config::{Dahai, DahaiTile, GameState, InGameState, TileClicked};
+use crate::config::{Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked};
 use crate::game::{self, Game};
 use crate::resource::GameTextures;
 use bevy::ecs::query;
@@ -68,39 +68,18 @@ fn setup_gameobject_ui(
 ) {
     let self_status = &game.status[game.self_id as usize];
     for i in 0..14 {
-        commands.spawn((
-            SpriteBundle {
-                texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
-                transform: Transform {
-                    scale: Vec3::splat(TILE_SCALE),
-                    translation: Vec3::new(
-                        TILE_WIDTH * TILE_SCALE * 0.8 * (i as f32 - 7.5),
-                        -200.0,
-                        i as f32,
-                    ),
-                    ..default()
-                },
+        spawn_to_pos(&mut commands, SpriteBundle {
+            texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
+            transform: Transform {
+                translation: get_tile_translation(PlayerSeat::Selv, i as u8),
+                scale: Vec3::splat(TILE_SCALE),
                 ..default()
             },
-            TileBind {
-                player: game.self_id,
-                slot: i as u8,
-            },
-            PickableBundle::default(),
-            On::<Pointer<Over>>::target_component_mut::<Transform>(|_, transform| {
-                transform.translation.y += TILE_HEIGHT * TILE_SCALE * 0.3;
-            }),
-            On::<Pointer<Out>>::target_component_mut::<Transform>(|_, transform| {
-                transform.translation.y -= TILE_HEIGHT * TILE_SCALE * 0.3;
-            }),
-            On::<Pointer<Click>>::target_insert(TileClicked),
-            // On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-            //     transform.translation += Vec3::new(drag.delta.x, -drag.delta.y, 0.0);
-            // }),
-            // On::<Pointer<Drop>>::commands_mut(|event, commands| {
-            //     println!("{:?}", event.pointer_location);
-            // }),
-        ));
+            ..default()
+        }, TileBind {
+            player: game.self_id,
+            slot: i as u8,
+        });
     }
 
     next_state.set(match (game.kyoku - game.self_id) % 4 {
@@ -122,6 +101,56 @@ fn game_dahai(mut dahaiwriter: EventWriter<Dahai>, query: Query<&TileBind, With<
         player: tilebind.player,
         slot: tilebind.slot,
     });
+}
+
+fn get_tile_translation(seat: PlayerSeat, slot: u8) -> Vec3 {
+    match seat {
+        PlayerSeat::Selv => Vec3::new(
+            TILE_WIDTH * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            -200.0,
+            slot as f32,
+        ),
+        PlayerSeat::Across => Vec3::new(
+            TILE_WIDTH * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            200.0,
+            slot as f32,
+        ),
+        PlayerSeat::Left => Vec3::new(
+            -200.0,
+            TILE_HEIGHT * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            slot as f32,
+        ),
+        PlayerSeat::Right => Vec3::new(
+            200.0,
+            TILE_HEIGHT * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            slot as f32,
+        ),
+    }
+}
+
+fn spawn_to_pos(
+    commands: &mut Commands,
+    sprite: SpriteBundle,
+    bind: TileBind,
+) {
+    commands.spawn((
+        sprite,
+        bind,
+        PickableBundle::default(),
+        On::<Pointer<Over>>::target_component_mut::<Transform>(|_, transform| {
+            transform.translation.y += TILE_HEIGHT * TILE_SCALE * 0.3;
+        }),
+        On::<Pointer<Out>>::target_component_mut::<Transform>(|_, transform| {
+            transform.translation.y -= TILE_HEIGHT * TILE_SCALE * 0.3;
+        }),
+        On::<Pointer<Click>>::target_insert(TileClicked),
+        // On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+        //     transform.translation += Vec3::new(drag.delta.x, -drag.delta.y, 0.0);
+        // }),
+        // On::<Pointer<Drop>>::commands_mut(|event, commands| {
+        //     println!("{:?}", event.pointer_location);
+        // }),
+    ));
 }
 
 fn handle_tile_click(
