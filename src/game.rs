@@ -7,6 +7,8 @@ use crate::resource::Rule;
 use crate::ui::ui_plugin;
 use crate::{checkstate, state2id, tu8, tuz, id2state, nextplayer};
 
+const TSUMO_SLOT : usize = 14;
+
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
 pub struct Game {
@@ -28,6 +30,15 @@ pub struct Game {
     pub ingamestate: InGameState,
 }
 
+#[derive(Derivative)]
+#[derivative(Default)]
+pub struct PlayerStatus {
+    #[derivative(Default(value = "25000"))]
+    pub score: i32,
+    pub jikaze: u8,
+    #[derivative(Default(value = "[tu8!(-); 14]"))]
+    pub tehai: [u8; 14],
+}
 pub enum GameError {
     InvalidPlayer,
     InvalidState,
@@ -110,7 +121,7 @@ impl Game {
             return Err(GameError::InvalidPlayer);
         }
         let tile = self.draw_tile();
-        self.status[player as usize].tsumo = tile;
+        self.status[player as usize].tehai[TSUMO_SLOT] = tile;
         println!("Player {} tsumo {}", player, tile);
         self.ingamestate = id2state!(player, play);
         Ok(tile)
@@ -130,8 +141,8 @@ impl Game {
         }
 
         // 如果刚鸣牌，会直接往手里塞一张空白牌
-        self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tsumo;
-        self.status[player as usize].tsumo = tu8!(-);
+        self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tehai[TSUMO_SLOT];
+        self.status[player as usize].tehai[TSUMO_SLOT] = tu8!(-);
         println!("Player {} dahai {}", player, slot);
 
         if self.can_naki() {
@@ -156,17 +167,6 @@ impl Game {
     // pub fn can_draw_tile(&self) -> bool {
     //     self.remain > GameRule.ace_remain
     // }
-}
-
-#[derive(Derivative)]
-#[derivative(Default)]
-pub struct PlayerStatus {
-    #[derivative(Default(value = "25000"))]
-    pub score: i32,
-    pub jikaze: u8,
-    #[derivative(Default(value = "[0; 37]"))]
-    pub tehai: [u8; 37],
-    pub tsumo: u8,
 }
 
 pub fn game_plugin(app: &mut App) {
