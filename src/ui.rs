@@ -1,7 +1,8 @@
 use crate::config::{Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked};
 use crate::game::{self, Game};
 use crate::resource::GameTextures;
-use bevy::ecs::query;
+use crate::tu8;
+use bevy::ecs::{entity, query};
 use bevy::transform::commands;
 use bevy::{prelude::*, transform};
 use bevy_mod_picking::prelude::*;
@@ -31,7 +32,8 @@ pub fn ui_plugin(app: &mut App) {
                 handle_tile_click,
             ),
         )
-        .add_event::<Dahai>();
+        .add_event::<Dahai>()
+        .add_systems(Update, ui_dahai.run_if(on_event::<Dahai>()));
 }
 
 fn setup_general_game_ui(
@@ -54,7 +56,7 @@ fn setup_general_game_ui(
     ingamestate.set(InGameState::GameObjectUI);
 }
 
-#[derive(Component)]
+#[derive(Component, PartialEq)]
 struct TileBind {
     pub player: u8,
     pub slot: u8,
@@ -68,18 +70,24 @@ fn setup_gameobject_ui(
 ) {
     let self_status = &game.status[game.self_id as usize];
     for i in 0..14 {
-        spawn_to_pos(&mut commands, SpriteBundle {
-            texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
-            transform: Transform {
-                translation: get_tile_translation(PlayerSeat::Selv, i as u8),
-                scale: Vec3::splat(TILE_SCALE),
-                ..default()
-            },
-            ..default()
-        }, TileBind {
-            player: game.self_id,
-            slot: i as u8,
-        });
+        if self_status.tehai[i] != tu8!(-) {
+            spawn_to_pos(
+                &mut commands,
+                SpriteBundle {
+                    texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
+                    transform: Transform {
+                        translation: get_tile_translation(PlayerSeat::Selv, i as u8),
+                        scale: Vec3::splat(TILE_SCALE),
+                        ..default()
+                    },
+                    ..default()
+                },
+                TileBind {
+                    player: game.self_id,
+                    slot: i as u8,
+                },
+            );
+        }
     }
 
     next_state.set(match (game.kyoku - game.self_id) % 4 {
@@ -95,12 +103,24 @@ fn setup_gameobject_ui(
 }
 
 //TODO: 打牌UI变化
-fn game_dahai(mut dahaiwriter: EventWriter<Dahai>, query: Query<&TileBind, With<DahaiTile>>) {
-    let tilebind = query.single();
+fn game_dahai(mut commands: Commands, mut dahaiwriter: EventWriter<Dahai>, query: Query<(Entity, &TileBind), With<DahaiTile>>) {
+    let (entity, tilebind) = query.single();
     dahaiwriter.send(Dahai {
         player: tilebind.player,
         slot: tilebind.slot,
     });
+    commands.entity(entity).remove::<DahaiTile>();
+}
+
+fn ui_dahai(mut commands: Commands, mut dahaireader: EventReader<Dahai>, query: Query<(Entity, &TileBind), With<TileBind>>) {
+    assert!(dahaireader.len() == 1);
+    for &Dahai{player, slot} in dahaireader.read() {
+        for (entity, tb) in query.iter() {
+            if tb == &(TileBind{player, slot}) {
+                commands.entity(entity).despawn();
+            }
+        }
+    }
 }
 
 fn get_tile_translation(seat: PlayerSeat, slot: u8) -> Vec3 {
@@ -128,11 +148,7 @@ fn get_tile_translation(seat: PlayerSeat, slot: u8) -> Vec3 {
     }
 }
 
-fn spawn_to_pos(
-    commands: &mut Commands,
-    sprite: SpriteBundle,
-    bind: TileBind,
-) {
+fn spawn_to_pos(commands: &mut Commands, sprite: SpriteBundle, bind: TileBind) {
     commands.spawn((
         sprite,
         bind,
