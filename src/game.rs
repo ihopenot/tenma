@@ -7,7 +7,7 @@ use crate::resource::Rule;
 use crate::ui::ui_plugin;
 use crate::{checkstate, state2id, tu8, tuz, id2state, nextplayer};
 
-const TSUMO_SLOT : usize = 14;
+const TSUMO_SLOT : usize = 13;
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
@@ -39,6 +39,8 @@ pub struct PlayerStatus {
     #[derivative(Default(value = "[tu8!(-); 14]"))]
     pub tehai: [u8; 14],
 }
+
+#[derive(Debug)]
 pub enum GameError {
     InvalidPlayer,
     InvalidState,
@@ -186,12 +188,14 @@ pub fn game_plugin(app: &mut App) {
 }
 
 fn wait_player(
-    mut commands: Commands,
-    game: ResMut<Game>,
+    // mut commands: Commands,
+    mut game: ResMut<Game>,
     state: Res<State<InGameState>>,
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
-    todo!("wait_player")
+    // TODO: more resonable dahai
+    game.dahai(state2id!(state.get()), TSUMO_SLOT as u8).unwrap();
+    next_state.set(game.ingamestate);
 }
 
 fn game_tsumo(mut game: ResMut<Game>, state: Res<State<InGameState>>, mut next_state: ResMut<NextState<InGameState>>) {
