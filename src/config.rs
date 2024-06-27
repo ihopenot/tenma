@@ -79,3 +79,9 @@ pub struct Dahai {
     pub player: u8,
     pub slot: u8,
 }
+
+#[derive(Event, Debug)]
+pub struct Tsumo {
+    pub player: u8,
+    pub tile: u8,
+}

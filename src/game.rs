@@ -2,12 +2,12 @@ use bevy::{math::f32, prelude::*, ui::widget::UiImageSize};
 use derivative::Derivative;
 use rand::Rng;
 
-use crate::config::{Dahai, GameState, InGameState, PLAY_MAP, TSUMO_MAP, NAKI_MAP};
+use crate::config::{Dahai, GameState, InGameState, Tsumo, NAKI_MAP, PLAY_MAP, TSUMO_MAP};
 use crate::resource::Rule;
 use crate::ui::ui_plugin;
-use crate::{checkstate, state2id, tu8, tuz, id2state, nextplayer};
+use crate::{checkstate, id2state, nextplayer, state2id, tu8, tuz};
 
-const TSUMO_SLOT : usize = 13;
+const TSUMO_SLOT: usize = 13;
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
@@ -50,7 +50,7 @@ pub enum NakiType {
     Chi,
     Pon,
     Kang,
-    Pei
+    Pei,
 }
 
 impl Game {
@@ -129,11 +129,7 @@ impl Game {
         Ok(tile)
     }
 
-    pub fn dahai(
-        &mut self,
-        player: u8,
-        slot: u8,
-    ) -> Result<(), GameError> {
+    pub fn dahai(&mut self, player: u8, slot: u8) -> Result<(), GameError> {
         let current_player = state2id!(self.ingamestate);
         if player != current_player {
             return Err(GameError::InvalidPlayer);
@@ -143,7 +139,8 @@ impl Game {
         }
 
         // 如果刚鸣牌，会直接往手里塞一张空白牌
-        self.status[player as usize].tehai[slot as usize] = self.status[player as usize].tehai[TSUMO_SLOT];
+        self.status[player as usize].tehai[slot as usize] =
+            self.status[player as usize].tehai[TSUMO_SLOT];
         self.status[player as usize].tehai[TSUMO_SLOT] = tu8!(-);
         println!("Player {} dahai {}", player, slot);
 
@@ -155,11 +152,7 @@ impl Game {
         Ok(())
     }
 
-    pub fn naki(
-        &mut self,
-        player: u8,
-        nakitype: NakiType,
-    ) {
+    pub fn naki(&mut self, player: u8, nakitype: NakiType) {
         #[cfg(feature = "debug")]
         return;
 
@@ -194,14 +187,24 @@ fn wait_player(
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
     // TODO: more resonable dahai
-    game.dahai(state2id!(state.get()), TSUMO_SLOT as u8).unwrap();
+    game.dahai(state2id!(state.get()), TSUMO_SLOT as u8)
+        .unwrap();
     next_state.set(game.ingamestate);
 }
 
-fn game_tsumo(mut game: ResMut<Game>, state: Res<State<InGameState>>, mut next_state: ResMut<NextState<InGameState>>) {
+fn game_tsumo(
+    mut game: ResMut<Game>,
+    state: Res<State<InGameState>>,
+    mut next_state: ResMut<NextState<InGameState>>,
+    mut tsumowriter: EventWriter<Tsumo>,
+) {
     let player = state2id!(state.get());
     let res = game.tsumo(player);
     next_state.set(game.ingamestate);
+    tsumowriter.send(Tsumo {
+        player,
+        tile: res.unwrap(),
+    });
 }
 
 fn setup_game(
@@ -212,7 +215,11 @@ fn setup_game(
     ingamestate.set(InGameState::GeneralUI);
 }
 
-fn prepare_game(mut game: ResMut<Game>, game_rule: Res<Rule>, mut next_state: ResMut<NextState<InGameState>>) {
+fn prepare_game(
+    mut game: ResMut<Game>,
+    game_rule: Res<Rule>,
+    mut next_state: ResMut<NextState<InGameState>>,
+) {
     game.reset(game_rule);
     game.start_new_game();
     next_state.set(game.ingamestate)

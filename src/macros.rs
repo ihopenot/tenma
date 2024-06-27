@@ -155,20 +155,29 @@ macro_rules! tuz {
 macro_rules! checkstate {
     ($st:expr, play) => {
         match $st {
-            InGameState::SelfPlay | InGameState::RightPlay | InGameState::AcrossPlay | InGameState::LeftPlay => true,
-            _ => false
+            InGameState::SelfPlay
+            | InGameState::RightPlay
+            | InGameState::AcrossPlay
+            | InGameState::LeftPlay => true,
+            _ => false,
         }
     };
     ($st:expr, tsumo) => {
         match $st {
-            InGameState::SelfTsumo | InGameState::RightTsumo | InGameState::AcrossTsumo | InGameState::LeftTsumo => true,
-            _ => false
+            InGameState::SelfTsumo
+            | InGameState::RightTsumo
+            | InGameState::AcrossTsumo
+            | InGameState::LeftTsumo => true,
+            _ => false,
         }
     };
     ($st:expr, naki) => {
         match $st {
-            InGameState::SelfNaki | InGameState::RightNaki | InGameState::AcrossNaki | InGameState::LeftNaki => true,
-            _ => false
+            InGameState::SelfNaki
+            | InGameState::RightNaki
+            | InGameState::AcrossNaki
+            | InGameState::LeftNaki => true,
+            _ => false,
         }
     };
 }
@@ -181,6 +190,19 @@ macro_rules! state2id {
             InGameState::RightPlay | InGameState::RightTsumo | InGameState::RightNaki => 1,
             InGameState::AcrossPlay | InGameState::AcrossTsumo | InGameState::AcrossNaki => 2,
             InGameState::LeftPlay | InGameState::LeftTsumo | InGameState::LeftNaki => 3,
+            _ => panic!("unreachable!"),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! id2loc {
+    ($v:expr) => {
+        match $v {
+            0 => PlayerSeat::Selv,
+            1 => PlayerSeat::Right,
+            2 => PlayerSeat::Across,
+            3 => PlayerSeat::Left,
             _ => panic!("unreachable!"),
         }
     };

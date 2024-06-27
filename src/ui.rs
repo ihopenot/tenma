@@ -1,7 +1,7 @@
-use crate::config::{Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked};
+use crate::config::{Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked, Tsumo};
 use crate::game::{self, Game};
 use crate::resource::GameTextures;
-use crate::tu8;
+use crate::{id2loc, tu8};
 use bevy::ecs::{entity, query};
 use bevy::transform::commands;
 use bevy::{prelude::*, transform};
@@ -33,7 +33,9 @@ pub fn ui_plugin(app: &mut App) {
             ),
         )
         .add_event::<Dahai>()
-        .add_systems(Update, ui_dahai.run_if(on_event::<Dahai>()));
+        .add_event::<Tsumo>()
+        .add_systems(Update, ui_dahai.run_if(on_event::<Dahai>()))
+        .add_systems(Update, ui_tsumo.run_if(on_event::<Tsumo>()));
 }
 
 fn setup_general_game_ui(
@@ -103,7 +105,11 @@ fn setup_gameobject_ui(
 }
 
 //TODO: 打牌UI变化
-fn game_dahai(mut commands: Commands, mut dahaiwriter: EventWriter<Dahai>, query: Query<(Entity, &TileBind), With<DahaiTile>>) {
+fn game_dahai(
+    mut commands: Commands,
+    mut dahaiwriter: EventWriter<Dahai>,
+    query: Query<(Entity, &TileBind), With<DahaiTile>>,
+) {
     let (entity, tilebind) = query.single();
     dahaiwriter.send(Dahai {
         player: tilebind.player,
@@ -112,19 +118,46 @@ fn game_dahai(mut commands: Commands, mut dahaiwriter: EventWriter<Dahai>, query
     commands.entity(entity).remove::<DahaiTile>();
 }
 
-fn ui_dahai(mut commands: Commands, mut dahaireader: EventReader<Dahai>, query: Query<(Entity, &TileBind), With<TileBind>>) {
+fn ui_dahai(
+    mut commands: Commands,
+    mut dahaireader: EventReader<Dahai>,
+    query: Query<(Entity, &TileBind), With<TileBind>>,
+) {
     assert!(dahaireader.len() == 1);
-    for &Dahai{player, slot} in dahaireader.read() {
+    for &Dahai { player, slot } in dahaireader.read() {
         for (entity, tb) in query.iter() {
-            if tb == &(TileBind{player, slot}) {
+            if tb == &(TileBind { player, slot }) {
                 commands.entity(entity).despawn();
             }
         }
     }
 }
 
-fn get_tile_translation(seat: PlayerSeat, slot: u8) -> Vec3 {
-    match seat {
+fn ui_tsumo(
+    mut commands: Commands,
+    game_texture: Res<GameTextures>,
+    mut tsumoreader: EventReader<Tsumo>,
+) {
+    assert!(tsumoreader.len() == 1);
+    for &Tsumo { player, tile } in tsumoreader.read() {
+        spawn_to_pos(
+            &mut commands,
+            SpriteBundle {
+                texture: game_texture.tile[tile as usize].clone(),
+                transform: Transform {
+                    translation: get_tile_translation(id2loc!(player), 14),
+                    scale: Vec3::splat(TILE_SCALE),
+                    ..default()
+                },
+                ..default()
+            },
+            TileBind { player, slot: 14 },
+        );
+    }
+}
+
+fn get_tile_translation(player_loc: PlayerSeat, slot: u8) -> Vec3 {
+    match player_loc {
         PlayerSeat::Selv => Vec3::new(
             TILE_WIDTH * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
             -200.0,
