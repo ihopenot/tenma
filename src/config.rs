@@ -85,3 +85,9 @@ pub struct Tsumo {
     pub player: u8,
     pub tile: u8,
 }
+
+#[derive(Event, Debug)]
+pub struct Clean {
+    pub player: u8,
+    pub slot: u8,
+}

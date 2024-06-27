@@ -1,8 +1,10 @@
-use crate::config::{Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked, Tsumo};
-use crate::game::{self, Game};
+use crate::config::{
+    Clean, Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked, Tsumo,
+};
+use crate::game::{self, Game, GameError};
 use crate::resource::GameTextures;
 use crate::{id2loc, tu8};
-use bevy::ecs::{entity, query};
+use bevy::ecs::{entity, query, world};
 use bevy::transform::commands;
 use bevy::{prelude::*, transform};
 use bevy_mod_picking::prelude::*;
@@ -34,8 +36,10 @@ pub fn ui_plugin(app: &mut App) {
         )
         .add_event::<Dahai>()
         .add_event::<Tsumo>()
+        .add_event::<Clean>()
         .add_systems(Update, ui_dahai.run_if(on_event::<Dahai>()))
-        .add_systems(Update, ui_tsumo.run_if(on_event::<Tsumo>()));
+        .add_systems(Update, ui_tsumo.run_if(on_event::<Tsumo>()))
+        .add_systems(Update, ui_clean.run_if(on_event::<Clean>()));
 }
 
 fn setup_general_game_ui(
@@ -93,10 +97,10 @@ fn setup_gameobject_ui(
     }
 
     next_state.set(match (game.kyoku - game.self_id) % 4 {
-        0 => InGameState::SelfPlay,
-        1 => InGameState::LeftPlay,
-        2 => InGameState::AcrossPlay,
-        3 => InGameState::RightPlay,
+        0 => InGameState::SelfTsumo,
+        1 => InGameState::LeftTsumo,
+        2 => InGameState::AcrossTsumo,
+        3 => InGameState::RightTsumo,
         _ => {
             assert!(false, "unreachable!");
             InGameState::Disabled
@@ -118,9 +122,41 @@ fn game_dahai(
     commands.entity(entity).remove::<DahaiTile>();
 }
 
+#[derive(Debug)]
+pub enum UIError {
+    NoSuchTile,
+}
+
+fn move_tile_to_slot(commands: &mut Commands, entity: Entity, player: u8, slot: u8) {
+    commands.entity(entity).insert(TileBind { player, slot });
+    commands.entity(entity).insert(Transform {
+        translation: get_tile_translation(id2loc!(player), slot),
+        scale: Vec3::splat(TILE_SCALE),
+        ..default()
+    });
+}
+
+fn ui_clean(
+    mut commands: Commands,
+    mut cleanreader: EventReader<Clean>,
+    query: Query<(Entity, &TileBind), With<TileBind>>,
+) {
+    assert!(cleanreader.len() == 1);
+    for &Clean { player, slot } in cleanreader.read() {
+        println!("cleaning {} {}", player, slot);
+        for (entity, tb) in query.iter() {
+            if tb == &(TileBind { player, slot: 13 }) {
+                println!("clean tsumo found");
+                move_tile_to_slot(&mut commands, entity, player, slot);
+            }
+        }
+    }
+}
+
 fn ui_dahai(
     mut commands: Commands,
     mut dahaireader: EventReader<Dahai>,
+    mut cleanwriter: EventWriter<Clean>,
     query: Query<(Entity, &TileBind), With<TileBind>>,
 ) {
     assert!(dahaireader.len() == 1);
@@ -130,6 +166,8 @@ fn ui_dahai(
                 commands.entity(entity).despawn();
             }
         }
+        cleanwriter.send(Clean { player, slot });
+        println!("clean send {} {}", player, slot)
     }
 }
 
@@ -145,13 +183,13 @@ fn ui_tsumo(
             SpriteBundle {
                 texture: game_texture.tile[tile as usize].clone(),
                 transform: Transform {
-                    translation: get_tile_translation(id2loc!(player), 14),
+                    translation: get_tile_translation(id2loc!(player), 13),
                     scale: Vec3::splat(TILE_SCALE),
                     ..default()
                 },
                 ..default()
             },
-            TileBind { player, slot: 14 },
+            TileBind { player, slot: 13 },
         );
     }
 }
