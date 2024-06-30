@@ -20,8 +20,8 @@ pub struct Game {
     pub uradora: [u8; 4],
 
     pub bakaze: u8,
-    #[derivative(Default(value = "[0; tuz!(?)]"))]
-    pub yama: [u8; tuz!(?)],
+    #[derivative(Default(value = "[0; tuz!(all)]"))]
+    pub yama: [u8; tuz!(all)],
     #[derivative(Default(value = "136"))]
     pub remain: u8,
 
@@ -36,8 +36,8 @@ pub struct PlayerStatus {
     #[derivative(Default(value = "25000"))]
     pub score: i32,
     pub jikaze: u8,
-    #[derivative(Default(value = "[tu8!(-); 14]"))]
-    pub tehai: [u8; 14],
+    #[derivative(Default(value = "[0; tuz!(all)]"))]
+    pub tehai: [u8; tuz!(all)],
 }
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl Game {
     pub fn reset(&mut self, game_rule: Res<Rule>) {
         *self = Game::default();
 
-        for i in 0..tuz!(?) {
+        for i in 0..tuz!(all) {
             self.yama[i] = 4;
         }
 
@@ -89,7 +89,7 @@ impl Game {
 
         let mut sum = 0;
         let mut tile = 0;
-        for i in 0..tuz!(?) {
+        for i in 0..tuz!(all) {
             sum += self.yama[i];
             if sum > tile_id {
                 tile = i;
