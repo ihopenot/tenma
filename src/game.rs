@@ -26,7 +26,7 @@ pub struct Game {
     #[derivative(Default(value = "136"))]
     pub remain: u8,
 
-    pub status: [PlayerStatus; 4],
+    pub players: [PlayerStatus; 4],
     pub self_id: u8,
     pub ingamestate: InGameState,
 }
@@ -40,6 +40,13 @@ pub struct PlayerStatus {
     #[derivative(Default(value = "[0; tuz!(all)]"))]
     pub tehai: [u8; tuz!(all)],
     pub last_tsumo: u8,
+}
+
+impl PlayerStatus {
+    pub fn add_tile_to_tehai(&mut self, tile: u8) {
+        self.last_tsumo = tile;
+        self.tehai[tile as usize] += 1;
+    }
 }
 
 #[derive(Debug)]
@@ -107,8 +114,7 @@ impl Game {
         for i in 0..4 {
             for _ in 0..13 {
                 let tile = self.draw_tile();
-                self.status[i].last_tsumo = tile;
-                self.status[i].tehai[tile as usize] += 1;
+                self.players[i].add_tile_to_tehai(tile)
             }
         }
         self.ingamestate = InGameState::SelfTsumo;
@@ -126,9 +132,9 @@ impl Game {
         if player != state2id!(self.ingamestate) {
             return Err(GameError::InvalidPlayer);
         }
+
         let tile = self.draw_tile();
-        self.status[player as usize].last_tsumo = tile;
-        self.status[player as usize].tehai[tile as usize] += 1;
+        self.players[player as usize].add_tile_to_tehai(tile);
         println!("Player {} tsumo {}", player, tile);
         self.ingamestate = id2state!(player, play);
         Ok(tile)
@@ -144,8 +150,8 @@ impl Game {
         }
 
         // make sure here is a tile
-        assert!(self.status[player as usize].tehai[tile as usize] > 0);
-        self.status[player as usize].tehai[tile as usize] -= 1;
+        assert!(self.players[player as usize].tehai[tile as usize] > 0);
+        self.players[player as usize].tehai[tile as usize] -= 1;
         println!("Player {} dahai {}", player, tile);
 
         if self.can_naki() {
@@ -193,7 +199,7 @@ fn wait_player(
 ) {
     // TODO: more resonable dahai
     let player = state2id!(state.get());
-    let tile = game.status[player as usize].last_tsumo;
+    let tile = game.players[player as usize].last_tsumo;
     // game.dahai(player, tile).unwrap();
     dahaiwriter.send(Dahai {
         bind: TileBind { player, tile },

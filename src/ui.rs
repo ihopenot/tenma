@@ -69,7 +69,7 @@ fn setup_gameobject_ui(
     game: Res<Game>,
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
-    let self_status = &game.status[game.self_id as usize];
+    let self_status = &game.players[game.self_id as usize];
     let mut slot: u8 = 0;
     for i in 0..tuz!(all) {
         for _ in 0..self_status.tehai[i] {
