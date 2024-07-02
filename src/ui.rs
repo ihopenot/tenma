@@ -1,9 +1,10 @@
 use crate::config::{
-    Clean, Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TileClicked, Tsumo,
+    Clean, Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TehaiPos, TileBind, TileClicked,
+    Tsumo, TSUMO_SLOT,
 };
 use crate::game::{self, Game, GameError};
 use crate::resource::GameTextures;
-use crate::{id2loc, tu8};
+use crate::{id2loc, tu8, tuz};
 use bevy::ecs::{entity, query, world};
 use bevy::transform::commands;
 use bevy::{prelude::*, transform};
@@ -62,12 +63,6 @@ fn setup_general_game_ui(
     ingamestate.set(InGameState::GameObjectUI);
 }
 
-#[derive(Component, PartialEq)]
-struct TileBind {
-    pub player: u8,
-    pub slot: u8,
-}
-
 fn setup_gameobject_ui(
     mut commands: Commands,
     game_texture: Res<GameTextures>,
@@ -75,24 +70,25 @@ fn setup_gameobject_ui(
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
     let self_status = &game.status[game.self_id as usize];
-    for i in 0..14 {
-        if self_status.tehai[i] != tu8!(-) {
-            spawn_to_pos(
+    let mut slot: u8 = 0;
+    for i in 0..tuz!(all) {
+        for _ in 0..self_status.tehai[i] {
+            spain_tehai_to_pos(
                 &mut commands,
                 SpriteBundle {
-                    texture: game_texture.tile[self_status.tehai[i] as usize].clone(),
-                    transform: Transform {
-                        translation: get_tile_translation(PlayerSeat::Selv, i as u8),
-                        scale: Vec3::splat(TILE_SCALE),
-                        ..default()
-                    },
+                    texture: game_texture.tile[i].clone(),
                     ..default()
                 },
                 TileBind {
                     player: game.self_id,
-                    slot: i as u8,
+                    tile: i as u8,
+                },
+                TehaiPos {
+                    seat: PlayerSeat::Selv,
+                    slot,
                 },
             );
+            slot += 1;
         }
     }
 
@@ -112,14 +108,18 @@ fn setup_gameobject_ui(
 fn game_dahai(
     mut commands: Commands,
     mut dahaiwriter: EventWriter<Dahai>,
-    query: Query<(Entity, &TileBind), With<DahaiTile>>,
+    query: Query<(Entity, &TileBind, &TehaiPos), With<DahaiTile>>,
 ) {
-    let (entity, tilebind) = query.single();
-    dahaiwriter.send(Dahai {
-        player: tilebind.player,
-        slot: tilebind.slot,
-    });
+    let (entity, tilebind, pos) = query.single();
     commands.entity(entity).remove::<DahaiTile>();
+    if pos.seat != PlayerSeat::Selv {
+        println!("not self dahai");
+        return;
+    }
+    dahaiwriter.send(Dahai {
+        bind: tilebind.clone(),
+        pos: pos.clone(),
+    });
 }
 
 #[derive(Debug)]
@@ -127,10 +127,10 @@ pub enum UIError {
     NoSuchTile,
 }
 
-fn move_tile_to_slot(commands: &mut Commands, entity: Entity, player: u8, slot: u8) {
-    commands.entity(entity).insert(TileBind { player, slot });
+fn move_tehai_to_slot(commands: &mut Commands, entity: Entity, pos: &TehaiPos) {
+    commands.entity(entity).insert(pos.clone());
     commands.entity(entity).insert(Transform {
-        translation: get_tile_translation(id2loc!(player), slot),
+        translation: get_tehai_translation(pos),
         scale: Vec3::splat(TILE_SCALE),
         ..default()
     });
@@ -139,15 +139,18 @@ fn move_tile_to_slot(commands: &mut Commands, entity: Entity, player: u8, slot: 
 fn ui_clean(
     mut commands: Commands,
     mut cleanreader: EventReader<Clean>,
-    query: Query<(Entity, &TileBind), With<TileBind>>,
+    query: Query<(Entity, &TehaiPos), With<TehaiPos>>,
 ) {
     assert!(cleanreader.len() == 1);
-    for &Clean { player, slot } in cleanreader.read() {
-        println!("cleaning {} {}", player, slot);
-        for (entity, tb) in query.iter() {
-            if tb == &(TileBind { player, slot: 13 }) {
-                println!("clean tsumo found");
-                move_tile_to_slot(&mut commands, entity, player, slot);
+    for &Clean { pos } in cleanreader.read() {
+        for (entity, tp) in query.iter() {
+            if tp
+                == &(TehaiPos {
+                    seat: pos.seat,
+                    slot: TSUMO_SLOT,
+                })
+            {
+                move_tehai_to_slot(&mut commands, entity, &pos);
             }
         }
     }
@@ -157,17 +160,19 @@ fn ui_dahai(
     mut commands: Commands,
     mut dahaireader: EventReader<Dahai>,
     mut cleanwriter: EventWriter<Clean>,
-    query: Query<(Entity, &TileBind), With<TileBind>>,
+    query: Query<(Entity, &TehaiPos), With<TehaiPos>>,
 ) {
     assert!(dahaireader.len() == 1);
-    for &Dahai { player, slot } in dahaireader.read() {
-        for (entity, tb) in query.iter() {
-            if tb == &(TileBind { player, slot }) {
+    for &Dahai { bind, pos } in dahaireader.read() {
+        for (entity, tp) in query.iter() {
+            if tp == &pos {
                 commands.entity(entity).despawn();
             }
         }
-        cleanwriter.send(Clean { player, slot });
-        println!("clean send {} {}", player, slot)
+        if pos.slot != TSUMO_SLOT {
+            cleanwriter.send(Clean { pos: pos.clone() });
+            println!("clean send {} {}", pos.seat as u8, pos.slot);
+        }
     }
 }
 
@@ -178,51 +183,61 @@ fn ui_tsumo(
 ) {
     assert!(tsumoreader.len() == 1);
     for &Tsumo { player, tile } in tsumoreader.read() {
-        spawn_to_pos(
+        spain_tehai_to_pos(
             &mut commands,
             SpriteBundle {
                 texture: game_texture.tile[tile as usize].clone(),
-                transform: Transform {
-                    translation: get_tile_translation(id2loc!(player), 13),
-                    scale: Vec3::splat(TILE_SCALE),
-                    ..default()
-                },
                 ..default()
             },
-            TileBind { player, slot: 13 },
+            TileBind { player, tile },
+            TehaiPos {
+                seat: id2loc!(player),
+                slot: TSUMO_SLOT,
+            },
         );
     }
 }
 
-fn get_tile_translation(player_loc: PlayerSeat, slot: u8) -> Vec3 {
-    match player_loc {
+fn get_tehai_translation(pos: &TehaiPos) -> Vec3 {
+    match pos.seat {
         PlayerSeat::Selv => Vec3::new(
-            TILE_WIDTH * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            TILE_WIDTH * TILE_SCALE * 0.8 * (pos.slot as f32 - 7.5),
             -200.0,
-            slot as f32,
+            pos.slot as f32,
         ),
         PlayerSeat::Across => Vec3::new(
-            TILE_WIDTH * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
+            TILE_WIDTH * TILE_SCALE * 0.8 * (pos.slot as f32 - 7.5),
             200.0,
-            slot as f32,
+            pos.slot as f32,
         ),
         PlayerSeat::Left => Vec3::new(
             -200.0,
-            TILE_HEIGHT * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
-            slot as f32,
+            TILE_HEIGHT * TILE_SCALE * 0.8 * (pos.slot as f32 - 7.5),
+            pos.slot as f32,
         ),
         PlayerSeat::Right => Vec3::new(
             200.0,
-            TILE_HEIGHT * TILE_SCALE * 0.8 * (slot as f32 - 7.5),
-            slot as f32,
+            TILE_HEIGHT * TILE_SCALE * 0.8 * (pos.slot as f32 - 7.5),
+            pos.slot as f32,
         ),
     }
 }
 
-fn spawn_to_pos(commands: &mut Commands, sprite: SpriteBundle, bind: TileBind) {
+fn spain_tehai_to_pos(
+    commands: &mut Commands,
+    mut sprite: SpriteBundle,
+    bind: TileBind,
+    pos: TehaiPos,
+) {
+    sprite.transform = Transform {
+        translation: get_tehai_translation(&pos),
+        scale: Vec3::splat(TILE_SCALE),
+        ..default()
+    };
     commands.spawn((
         sprite,
         bind,
+        pos,
         PickableBundle::default(),
         On::<Pointer<Over>>::target_component_mut::<Transform>(|_, transform| {
             transform.translation.y += TILE_HEIGHT * TILE_SCALE * 0.3;

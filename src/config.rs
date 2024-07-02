@@ -51,11 +51,26 @@ pub const NAKI_MAP: [InGameState; 4] = [
     InGameState::LeftNaki,
 ];
 
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum PlayerSeat {
     Selv,
     Right,
     Across,
     Left,
+}
+
+pub const TSUMO_SLOT: u8 = 14;
+
+#[derive(Component, PartialEq, Debug, Clone, Copy)]
+pub struct TileBind {
+    pub player: u8,
+    pub tile: u8,
+}
+
+#[derive(Component, PartialEq, Debug, Clone, Copy)]
+pub struct TehaiPos {
+    pub seat: PlayerSeat,
+    pub slot: u8,
 }
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
@@ -76,8 +91,8 @@ pub struct TileClicked;
 
 #[derive(Event, Debug)]
 pub struct Dahai {
-    pub player: u8,
-    pub slot: u8,
+    pub bind: TileBind,
+    pub pos: TehaiPos,
 }
 
 #[derive(Event, Debug)]
@@ -88,6 +103,5 @@ pub struct Tsumo {
 
 #[derive(Event, Debug)]
 pub struct Clean {
-    pub player: u8,
-    pub slot: u8,
+    pub pos: TehaiPos,
 }

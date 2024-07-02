@@ -2,12 +2,13 @@ use bevy::{math::f32, prelude::*, ui::widget::UiImageSize};
 use derivative::Derivative;
 use rand::Rng;
 
-use crate::config::{Dahai, GameState, InGameState, Tsumo, NAKI_MAP, PLAY_MAP, TSUMO_MAP};
+use crate::config::{
+    Dahai, GameState, InGameState, PlayerSeat, TehaiPos, TileBind, Tsumo, NAKI_MAP, PLAY_MAP,
+    TSUMO_MAP, TSUMO_SLOT,
+};
 use crate::resource::Rule;
 use crate::ui::ui_plugin;
-use crate::{checkstate, id2state, nextplayer, state2id, tu8, tuz};
-
-const TSUMO_SLOT: usize = 13;
+use crate::{checkstate, id2loc, id2state, nextplayer, state2id, tu8, tuz};
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
@@ -38,6 +39,7 @@ pub struct PlayerStatus {
     pub jikaze: u8,
     #[derivative(Default(value = "[0; tuz!(all)]"))]
     pub tehai: [u8; tuz!(all)],
+    pub last_tsumo: u8,
 }
 
 #[derive(Debug)]
@@ -103,8 +105,10 @@ impl Game {
 
     pub fn start_new_game(&mut self) {
         for i in 0..4 {
-            for j in 0..13 {
-                self.status[i].tehai[j] = self.draw_tile();
+            for _ in 0..13 {
+                let tile = self.draw_tile();
+                self.status[i].last_tsumo = tile;
+                self.status[i].tehai[tile as usize] += 1;
             }
         }
         self.ingamestate = InGameState::SelfTsumo;
@@ -123,13 +127,14 @@ impl Game {
             return Err(GameError::InvalidPlayer);
         }
         let tile = self.draw_tile();
-        self.status[player as usize].tehai[TSUMO_SLOT] = tile;
+        self.status[player as usize].last_tsumo = tile;
+        self.status[player as usize].tehai[tile as usize] += 1;
         println!("Player {} tsumo {}", player, tile);
         self.ingamestate = id2state!(player, play);
         Ok(tile)
     }
 
-    pub fn dahai(&mut self, player: u8, slot: u8) -> Result<(), GameError> {
+    pub fn dahai(&mut self, player: u8, tile: u8) -> Result<(), GameError> {
         let current_player = state2id!(self.ingamestate);
         if player != current_player {
             return Err(GameError::InvalidPlayer);
@@ -138,11 +143,10 @@ impl Game {
             return Err(GameError::InvalidState);
         }
 
-        // 如果刚鸣牌，会直接往手里塞一张空白牌
-        self.status[player as usize].tehai[slot as usize] =
-            self.status[player as usize].tehai[TSUMO_SLOT];
-        self.status[player as usize].tehai[TSUMO_SLOT] = tu8!(-);
-        println!("Player {} dahai {}", player, slot);
+        // make sure here is a tile
+        assert!(self.status[player as usize].tehai[tile as usize] > 0);
+        self.status[player as usize].tehai[tile as usize] -= 1;
+        println!("Player {} dahai {}", player, tile);
 
         if self.can_naki() {
             todo!("naki")
@@ -183,12 +187,21 @@ pub fn game_plugin(app: &mut App) {
 fn wait_player(
     // mut commands: Commands,
     mut game: ResMut<Game>,
+    mut dahaiwriter: EventWriter<Dahai>,
     state: Res<State<InGameState>>,
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
     // TODO: more resonable dahai
-    game.dahai(state2id!(state.get()), TSUMO_SLOT as u8)
-        .unwrap();
+    let player = state2id!(state.get());
+    let tile = game.status[player as usize].last_tsumo;
+    // game.dahai(player, tile).unwrap();
+    dahaiwriter.send(Dahai {
+        bind: TileBind { player, tile },
+        pos: TehaiPos {
+            seat: id2loc!(player),
+            slot: TSUMO_SLOT,
+        },
+    });
     next_state.set(game.ingamestate);
 }
 
@@ -232,8 +245,8 @@ fn game_dahai(
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
     // 只处理一次打牌
-    for &Dahai { player, slot } in dahai.read() {
-        game.dahai(player, slot);
+    for &Dahai { bind, .. } in dahai.read() {
+        game.dahai(bind.player, bind.tile).unwrap();
         next_state.set(game.ingamestate);
         break;
     }
