@@ -8,7 +8,7 @@ use crate::config::{
 };
 use crate::resource::Rule;
 use crate::ui::ui_plugin;
-use crate::{checkstate, id2loc, id2state, nextplayer, state2id, tu8, tuz};
+use crate::{aka, checkstate, deaka, id2loc, id2state, nextplayer, state2id, tu8, tuz};
 
 #[derive(Resource, Derivative)]
 #[derivative(Default)]
@@ -31,6 +31,24 @@ pub struct Game {
     pub ingamestate: InGameState,
 }
 
+#[derive(Default)]
+pub enum FuroType {
+    #[default]
+    None,
+    Chi,
+    Pon,
+    Daiminkan,
+    Ankan,
+}
+
+#[derive(Derivative)]
+#[derivative(Default)]
+pub struct PlayerFuro {
+    pub furo_type: FuroType,
+    pub tile_count: u8,
+    pub tiles: [u8; 4],
+}
+
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct PlayerStatus {
@@ -40,12 +58,18 @@ pub struct PlayerStatus {
     #[derivative(Default(value = "[0; tuz!(all)]"))]
     pub tehai: [u8; tuz!(all)],
     pub last_tsumo: u8,
+    pub furo: [PlayerFuro; 4],
 }
 
 impl PlayerStatus {
     pub fn add_tile_to_tehai(&mut self, tile: u8) {
         self.last_tsumo = tile;
         self.tehai[tile as usize] += 1;
+    }
+
+    // can functions
+    pub fn can_ankan(&self, tile: u8) -> bool {
+        self.tehai[tile as usize] == 4
     }
 }
 
@@ -139,6 +163,8 @@ impl Game {
         self.ingamestate = id2state!(player, play);
         Ok(tile)
     }
+
+    // pub fn ankan(&mut self, player: u8) -> Result<(), GameError> {}
 
     pub fn dahai(&mut self, player: u8, tile: u8) -> Result<(), GameError> {
         let current_player = state2id!(self.ingamestate);
