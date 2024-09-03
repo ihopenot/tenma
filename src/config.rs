@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use derivative::Derivative;
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
-pub enum GameState {
+pub enum ProgramState {
     #[default]
     // Splash,
     Menu,

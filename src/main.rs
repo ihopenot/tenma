@@ -1,24 +1,25 @@
-mod menu;
 mod config;
 mod game;
-mod ui;
-mod resource;
+mod gameplay;
 mod macros;
-use bevy_mod_picking::prelude::*;
-use config::GameState;
+mod menu;
+mod resource;
+mod ui;
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::*;
+use config::ProgramState;
 use resource::{GameTextures, Rule};
 
 fn main() {
     App::new()
-    .init_state::<GameState>()
-    .add_plugins(bevy::DefaultPlugins)
-    .add_plugins(DefaultPickingPlugins)
-    .insert_resource(DebugPickingMode::Normal)
-    .add_plugins(menu::menu_plugin)
-    .add_plugins(game::game_plugin)
-    .add_systems(Startup, setup)
-    .run();
+        .init_state::<ProgramState>()
+        .add_plugins(bevy::DefaultPlugins)
+        .add_plugins(DefaultPickingPlugins)
+        .insert_resource(DebugPickingMode::Normal)
+        .add_plugins(menu::menu_plugin)
+        .add_plugins(game::game_plugin)
+        .add_systems(Startup, setup)
+        .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -26,14 +27,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let game_textures = GameTextures {
         background: asset_server.load("textures/background.png"),
-        tile: std::array::from_fn(|_i| {
-            asset_server.load(format!("textures/tiles/{}.png", _i))
-        }),
+        tile: std::array::from_fn(|_i| asset_server.load(format!("textures/tiles/{}.png", _i))),
         windboard: asset_server.load("textures/windboard.png"),
     };
     commands.insert_resource(game_textures);
 
     let game_rule = Rule::default();
     commands.insert_resource(game_rule);
-
 }

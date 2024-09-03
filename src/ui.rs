@@ -1,8 +1,8 @@
 use crate::config::{
-    Clean, Dahai, DahaiTile, GameState, InGameState, PlayerSeat, TehaiPos, TileBind, TileClicked,
+    Clean, Dahai, DahaiTile, ProgramState, InGameState, PlayerSeat, TehaiPos, TileBind, TileClicked,
     Tsumo, TSUMO_SLOT,
 };
-use crate::game::{self, Game, GameError};
+use crate::game::{self, GameError, GameState};
 use crate::resource::GameTextures;
 use crate::{id2loc, tu8, tuz};
 use bevy::ecs::{entity, query, world};
@@ -66,7 +66,7 @@ fn setup_general_game_ui(
 fn setup_gameobject_ui(
     mut commands: Commands,
     game_texture: Res<GameTextures>,
-    game: Res<Game>,
+    game: Res<ProgramState>,
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
     let self_status = &game.players[game.self_id as usize];

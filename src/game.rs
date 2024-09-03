@@ -3,33 +3,13 @@ use derivative::Derivative;
 use rand::Rng;
 
 use crate::config::{
-    Dahai, GameState, InGameState, PlayerSeat, TehaiPos, TileBind, Tsumo, NAKI_MAP, PLAY_MAP,
+    Dahai, InGameState, PlayerSeat, ProgramState, TehaiPos, TileBind, Tsumo, NAKI_MAP, PLAY_MAP,
     TSUMO_MAP, TSUMO_SLOT,
 };
 use crate::resource::Rule;
+use crate::state::GameState;
 use crate::ui::ui_plugin;
-use crate::{aka, checkstate, deaka, id2loc, id2state, nextplayer, state2id, tu8, tuz};
-
-#[derive(Resource, Derivative)]
-#[derivative(Default)]
-pub struct Game {
-    // 本场
-    pub honba: u8,
-    // 局
-    pub kyoku: u8,
-    pub dora: [u8; 4],
-    pub uradora: [u8; 4],
-
-    pub bakaze: u8,
-    #[derivative(Default(value = "[0; tuz!(all)]"))]
-    pub yama: [u8; tuz!(all)],
-    #[derivative(Default(value = "136"))]
-    pub remain: u8,
-
-    pub players: [PlayerStatus; 4],
-    pub self_id: u8,
-    pub ingamestate: InGameState,
-}
+use crate::{checkstate, id2loc, id2state, nextplayer, state2id, tu8, tuz};
 
 #[derive(Default)]
 pub enum FuroType {
@@ -49,30 +29,6 @@ pub struct PlayerFuro {
     pub tiles: [u8; 4],
 }
 
-#[derive(Derivative)]
-#[derivative(Default)]
-pub struct PlayerStatus {
-    #[derivative(Default(value = "25000"))]
-    pub score: i32,
-    pub jikaze: u8,
-    #[derivative(Default(value = "[0; tuz!(all)]"))]
-    pub tehai: [u8; tuz!(all)],
-    pub last_tsumo: u8,
-    pub furo: [PlayerFuro; 4],
-}
-
-impl PlayerStatus {
-    pub fn add_tile_to_tehai(&mut self, tile: u8) {
-        self.last_tsumo = tile;
-        self.tehai[tile as usize] += 1;
-    }
-
-    // can functions
-    pub fn can_ankan(&self, tile: u8) -> bool {
-        self.tehai[tile as usize] == 4
-    }
-}
-
 #[derive(Debug)]
 pub enum GameError {
     InvalidPlayer,
@@ -86,9 +42,9 @@ pub enum NakiType {
     Pei,
 }
 
-impl Game {
+impl GameState {
     pub fn reset(&mut self, game_rule: Res<Rule>) {
-        *self = Game::default();
+        *self = GameState::default();
 
         for i in 0..tuz!(all) {
             self.yama[i] = 4;
@@ -201,10 +157,10 @@ impl Game {
 }
 
 pub fn game_plugin(app: &mut App) {
-    app.insert_resource(Game { ..default() })
+    app.insert_resource(GameState { ..default() })
         .init_state::<InGameState>()
         .add_plugins(ui_plugin)
-        .add_systems(OnEnter(GameState::Game), setup_game)
+        .add_systems(OnEnter(ProgramState::Game), setup_game)
         .add_systems(OnEnter(InGameState::GeneralUI), prepare_game)
         .add_systems(OnEnter(InGameState::SelfTsumo), game_tsumo)
         .add_systems(OnEnter(InGameState::RightTsumo), game_tsumo)
@@ -218,7 +174,7 @@ pub fn game_plugin(app: &mut App) {
 
 fn wait_player(
     // mut commands: Commands,
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameState>,
     mut dahaiwriter: EventWriter<Dahai>,
     state: Res<State<InGameState>>,
     mut next_state: ResMut<NextState<InGameState>>,
@@ -238,7 +194,7 @@ fn wait_player(
 }
 
 fn game_tsumo(
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameState>,
     state: Res<State<InGameState>>,
     mut next_state: ResMut<NextState<InGameState>>,
     mut tsumowriter: EventWriter<Tsumo>,
@@ -261,7 +217,7 @@ fn setup_game(
 }
 
 fn prepare_game(
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameState>,
     game_rule: Res<Rule>,
     mut next_state: ResMut<NextState<InGameState>>,
 ) {
@@ -271,7 +227,7 @@ fn prepare_game(
 }
 
 fn game_dahai(
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameState>,
     mut dahai: EventReader<Dahai>,
     state: Res<State<InGameState>>,
     mut next_state: ResMut<NextState<InGameState>>,

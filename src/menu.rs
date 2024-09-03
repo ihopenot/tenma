@@ -1,6 +1,6 @@
 use bevy::{app::AppExit, prelude::*};
 
-use crate::config::{GameState, MenuState};
+use crate::config::{ProgramState, MenuState};
 
 // This plugin manages the menu, with 5 different screens:
 // - a main menu with "New Game", "Settings", "Quit"
@@ -12,14 +12,14 @@ pub fn menu_plugin(app: &mut App) {
         // entering the `GameState::Menu` state.
         // Current screen in the menu is handled by an independent state from `GameState`
         .init_state::<MenuState>()
-        .add_systems(OnEnter(GameState::Menu), menu_setup)
+        .add_systems(OnEnter(ProgramState::Menu), menu_setup)
         // Systems to handle the main menu screen
         .add_systems(OnEnter(MenuState::Main), main_menu_setup)
         .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
         // Common systems to all screens that handles buttons behavior
         .add_systems(
             Update,
-            (menu_action, button_system).run_if(in_state(GameState::Menu)),
+            (menu_action, button_system).run_if(in_state(ProgramState::Menu)),
         );
 }
 
@@ -498,7 +498,7 @@ fn menu_action(
     >,
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
-    mut game_state: ResMut<NextState<GameState>>,
+    mut game_state: ResMut<NextState<ProgramState>>,
 ) {
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -507,7 +507,7 @@ fn menu_action(
                     app_exit_events.send(AppExit);
                 }
                 MenuButtonAction::Play => {
-                    game_state.set(GameState::Game);
+                    game_state.set(ProgramState::Game);
                     menu_state.set(MenuState::Disabled);
                 }
             }
