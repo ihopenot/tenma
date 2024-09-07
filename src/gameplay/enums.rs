@@ -1,3 +1,5 @@
+use bevy::prelude::default;
+
 pub enum Error {
     InvalidRuleSet,
 }
@@ -6,6 +8,15 @@ pub enum Error {
 pub enum EnumGameState {
     #[default]
     NotStarted,
-    InKyoku,
+    Tsumo,
+    Dahai,
+    Naki,
     WaitNewKyoku,
+}
+
+#[derive(Default, PartialEq, Clone, Copy)]
+pub enum TsumoType {
+    #[default]
+    Yama,
+    Rinshan,
 }

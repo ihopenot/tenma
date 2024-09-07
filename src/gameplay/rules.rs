@@ -1,30 +1,56 @@
-use super::tile::Tile;
+use bevy::{prelude::*, utils::HashMap};
 
-#[derive(Clone)]
+use super::{
+    effect::{Effect, EnumEffect, EnumEffectLevel},
+    state::GameState,
+    tile::Tile,
+};
+
+#[derive(Default)]
 pub struct RuleSet {
-    pub init_rule: InitRule,       // init score, or sth.
-    pub play_rules: Vec<PlayRule>, // 食替, 番缚 or sth.
-    pub ron_rules: Vec<RonRule>,   // 胡牌方式
+    pub gamestart_rules: Vec<Box<dyn Rule>>,  // 开局钩子
+    pub kyokustart_rules: Vec<Box<dyn Rule>>, // 局开始钩子
+    pub tsumo_rules: Vec<Box<dyn Rule>>,      // 自摸钩子
+    pub dahai_rules: Vec<Box<dyn Rule>>,      // 打牌钩子
 }
 
-#[derive(Clone)]
-pub struct InitRule {
-    tile_set: Vec<Tile>,
-    init_score: [i32; 4],
+#[derive(Resource, Default)]
+pub struct RuleDict {
+    pub rules: HashMap<&'static str, Box<dyn Rule>>,
+}
+impl RuleDict {
+    pub fn set_rule(&mut self, rule: Box<dyn Rule>) {
+        self.rules.insert(rule.name(), rule);
+    }
 }
 
-#[derive(Clone)]
-pub struct PlayRule {}
+type RulePass = fn(&GameState) -> Effect;
+pub trait Rule: Sync + Send {
+    fn name(&self) -> &'static str;
+    fn pass(&self, game_state: &GameState) -> Effect;
+}
 
-#[derive(Clone)]
-pub struct RonRule {}
-
-impl InitRule {
-    pub fn get_tile_set(&self) -> &Vec<Tile> {
-        &self.tile_set
+pub struct BaseRuleSetScores {
+    pub name: &'static str,
+    pub scores: [i32; 4],
+}
+impl Rule for BaseRuleSetScores {
+    fn name(&self) -> &'static str {
+        self.name
     }
 
-    pub fn get_init_score(&self) -> &[i32; 4] {
-        &self.init_score
+    fn pass(&self, game_state: &GameState) -> Effect {
+        let mut effect = Effect::new(EnumEffect::SetScores, EnumEffectLevel::Base, 100);
+        effect.effect_data.set_scores = self.scores;
+        effect
     }
+}
+
+pub fn rules_plugin(app: &mut App) {
+    let mut rule_dict = RuleDict::default();
+    rule_dict.set_rule(Box::new(BaseRuleSetScores {
+        name: "set_scores",
+        scores: [25000, 25000, 25000, 25000],
+    }));
+    app.insert_resource(rule_dict);
 }
