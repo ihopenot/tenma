@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use derivative::Derivative;
 
 use super::{
-    action::Action,
+    action::{Action, EnumAction},
     enums::{EnumGameState, Error},
     rules::RuleSet,
     tile::Tile,
@@ -22,7 +22,7 @@ macro_rules! kyoku2player {
 }
 
 #[derive(Resource)]
-pub struct GameState<'a> {
+pub struct GameState {
     pub kyoku: u8, // 局, 半庄[0, 7]
     pub honba: u8, // 本场, [0, -]
     pub bakaze: u8,
@@ -39,7 +39,7 @@ pub struct GameState<'a> {
     pub current_player: u8,
     pub state: EnumGameState,
 
-    pub rule: Option<RuleSet<'a>>,
+    pub rule: Option<RuleSet>,
 }
 
 #[derive(Default)]
@@ -55,7 +55,7 @@ pub struct PlayerStatus {
 impl PlayerStatus {}
 
 impl GameState {
-    pub fn new(rule: &RuleSet) -> Self {
+    pub fn new(rule: Option<RuleSet>) -> Self {
         let mut ret = Self {
             rule: None,
             kyoku: 0,
@@ -74,45 +74,21 @@ impl GameState {
         ret
     }
 
-    pub fn load_rule(&mut self, rule: &RuleSet) {
-        self.rule = Some(rule.clone());
+    pub fn load_rule(&mut self, rule: Option<RuleSet>) {
+        self.rule = rule;
+    }
 
-        let mut yama = Vec::new();
-        for tile in rule.init_rule.get_tile_set() {
-            yama.push(tile.clone());
+    pub fn step_action(&mut self, action: Action) -> Result<(), Error> {
+        if self.rule.is_none() {
+            return Err(Error::RuleNotSet);
         }
-        let remain = yama.len() as u8;
-    }
 
-    pub fn start_game(&mut self) {
-        assert!(self.rule.is_some());
+        match action.act_type {
+            EnumAction::GameStart => Ok(()),
+            _ => Err(Error::ActionNotSupported),
+        };
+        self.last_action = action;
 
-        assert!(self.state == EnumGameState::NotStarted);
-
-        self.kyoku = 0;
-        self.honba = 0;
-        self.bakaze = 0;
-        self.current_player = 0;
-        self.state = EnumGameState::WaitNewKyoku;
-        self.start_kyoku();
-    }
-
-    // 开始新一局
-    pub fn start_kyoku(&mut self) {
-        assert!(self.state == EnumGameState::WaitNewKyoku);
-
-        self.bakaze = kyoku2bakaze!(self.kyoku);
-        self.current_player = kyoku2player!(self.kyoku);
-        self.state = EnumGameState::Tsumo;
-        self.tsumo(self.current_player, TsumoType::Yama);
-    }
-
-    // 摸牌
-    pub fn tsumo(&mut self, player: u8, tsumo_type: TsumoType) {
-        assert!(self.state == EnumGameState::Tsumo && self.current_player == player);
-
-        let tile = self.draw_tile();
-        self.players[player as usize].last_tsumo = tile;
-        self.state = EnumGameState::Dahai;
+        Ok(())
     }
 }

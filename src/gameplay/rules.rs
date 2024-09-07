@@ -1,4 +1,6 @@
-use bevy::{prelude::*, utils::HashMap};
+use std::collections::HashMap;
+
+use bevy::{log::tracing_subscriber::field::debug, prelude::*};
 
 use super::{
     effect::{Effect, EnumEffect, EnumEffectLevel},
@@ -44,13 +46,4 @@ impl Rule for BaseRuleSetScores {
         effect.effect_data.set_scores = self.scores;
         effect
     }
-}
-
-pub fn rules_plugin(app: &mut App) {
-    let mut rule_dict = RuleDict::default();
-    rule_dict.set_rule(Box::new(BaseRuleSetScores {
-        name: "set_scores",
-        scores: [25000, 25000, 25000, 25000],
-    }));
-    app.insert_resource(rule_dict);
 }

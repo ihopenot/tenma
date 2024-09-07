@@ -1,10 +1,11 @@
 mod config;
-mod game;
+mod engine;
+// mod game;
 mod gameplay;
 mod macros;
 mod menu;
 mod resource;
-mod ui;
+// mod ui;
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 use config::ProgramState;
@@ -17,7 +18,8 @@ fn main() {
         .add_plugins(DefaultPickingPlugins)
         .insert_resource(DebugPickingMode::Normal)
         .add_plugins(menu::menu_plugin)
-        .add_plugins(game::game_plugin)
+        // .add_plugins(game::game_plugin)
+        .add_plugins(engine::game_engine_plugin)
         .add_systems(Startup, setup)
         .run();
 }

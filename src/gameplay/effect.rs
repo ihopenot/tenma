@@ -30,7 +30,7 @@ pub enum EnumEffect {
     None,
 }
 
-union EffectData {
+pub union EffectData {
     pub set_scores: [i32; 4],
     pub none: (),
 }

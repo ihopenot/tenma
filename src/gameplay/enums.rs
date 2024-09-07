@@ -1,7 +1,8 @@
 use bevy::prelude::default;
 
 pub enum Error {
-    InvalidRuleSet,
+    RuleNotSet,
+    ActionNotSupported,
 }
 
 #[derive(Default, PartialEq)]

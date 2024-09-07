@@ -13,8 +13,6 @@ impl Tile {
     pub fn unkown() -> Self {
         Self(255)
     }
-
-    pub fn num() -> u8 {}
 }
 
 #[macro_export]
