@@ -3334,7 +3334,9 @@ dependencies = [
  "bevy",
  "bevy_mod_picking",
  "derivative",
+ "quote",
  "rand",
+ "syn 2.0.65",
 ]
 
 [[package]]

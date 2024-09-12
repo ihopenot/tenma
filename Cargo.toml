@@ -9,6 +9,11 @@ bevy = "0.13.2"
 bevy_mod_picking = { version = "0.18.2", features = ["backend_sprite"] }
 derivative = "2.2.0"
 rand = "0.8.5"
+syn = "2.0"
+quote = "1.0"
+
+[lib]
+proc-macro = true
 
 [[example]]
 name = "test"

@@ -3,11 +3,12 @@ use derivative::Derivative;
 
 use super::{
     action::{Action, EnumAction},
-    enums::{EnumGameState, Error},
+    effect::EffectSet,
+    enums::{EnumGameState, EnumRulePhase, Error},
     rules::RuleSet,
     tile::Tile,
 };
-use crate::{gameplay::enums::TsumoType, tuid};
+use crate::{gameplay::enums::EnumTsumoType, tuid};
 
 macro_rules! kyoku2bakaze {
     ($v:expr) => {
@@ -78,14 +79,50 @@ impl GameState {
         self.rule = rule;
     }
 
+    fn collect_effects(&self, phase: EnumRulePhase) -> Result<EffectSet, Error> {
+        let mut effects = EffectSet::new();
+        if let Some(rule) = &self.rule {
+            match phase {
+                EnumRulePhase::PreGameStart => {
+                    for r in &rule.gamestart_rules {
+                        effects.add_effect(r.pass(self));
+                    }
+                }
+                EnumRulePhase::PreKyokuStart => {
+                    for r in &rule.kyokustart_rules {
+                        effects.add_effect(r.pass(self));
+                    }
+                }
+                EnumRulePhase::PreTsumo => {
+                    for r in &rule.tsumo_rules {
+                        effects.add_effect(r.pass(self));
+                    }
+                }
+                EnumRulePhase::PreDahai => {
+                    for r in &rule.dahai_rules {
+                        effects.add_effect(r.pass(self));
+                    }
+                }
+                _ => return Err(Error::PhaseNotSupported),
+            }
+        }
+        Ok(effects)
+    }
+
     pub fn step_action(&mut self, action: Action) -> Result<(), Error> {
         if self.rule.is_none() {
             return Err(Error::RuleNotSet);
         }
 
         match action.act_type {
-            EnumAction::GameStart => Ok(()),
-            _ => Err(Error::ActionNotSupported),
+            EnumAction::GameStart => {
+                let mut effects = self.collect_effects(EnumRulePhase::PreGameStart).unwrap();
+                if effects.with_deny() {
+                    return Err(Error::RuleDenied);
+                }
+                effects.apply(self);
+            }
+            _ => return Err(Error::ActionNotSupported),
         };
         self.last_action = action;
 

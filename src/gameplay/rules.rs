@@ -31,19 +31,3 @@ pub trait Rule: Sync + Send {
     fn name(&self) -> &'static str;
     fn pass(&self, game_state: &GameState) -> Effect;
 }
-
-pub struct BaseRuleSetScores {
-    pub name: &'static str,
-    pub scores: [i32; 4],
-}
-impl Rule for BaseRuleSetScores {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
-    fn pass(&self, game_state: &GameState) -> Effect {
-        let mut effect = Effect::new(EnumEffect::SetScores, EnumEffectLevel::Base, 100);
-        effect.effect_data.set_scores = self.scores;
-        effect
-    }
-}
