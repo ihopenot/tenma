@@ -1,6 +1,6 @@
 use super::tile::Tile;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Action {
     pub player: u8,
     pub act_type: EnumAction,
@@ -8,7 +8,7 @@ pub struct Action {
     pub actee_tiles: Vec<Tile>,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq, Clone)]
 pub enum EnumAction {
     Chi,
     Pon,

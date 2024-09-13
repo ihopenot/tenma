@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use derivative::Derivative;
+use rand::seq::SliceRandom;
 
 use super::{
     action::{Action, EnumAction},
@@ -33,6 +34,8 @@ pub struct GameState {
     pub yama: Vec<Tile>,
 
     pub last_action: Action,
+    pub current_action: Action,
+    pub next_action: Option<Action>,
 
     pub remain: u8,
 
@@ -65,6 +68,8 @@ impl GameState {
             dora: [Tile::unkown(); 4],
             uradora: [Tile::unkown(); 4],
             last_action: Default::default(),
+            current_action: Default::default(),
+            next_action: None,
             yama: Default::default(),
             remain: 0,
             players: Default::default(),
@@ -114,7 +119,8 @@ impl GameState {
             return Err(Error::RuleNotSet);
         }
 
-        match action.act_type {
+        self.current_action = action;
+        match self.current_action.act_type {
             EnumAction::GameStart => {
                 let mut effects = self.collect_effects(EnumRulePhase::PreGameStart).unwrap();
                 if effects.with_deny() {
@@ -124,8 +130,18 @@ impl GameState {
             }
             _ => return Err(Error::ActionNotSupported),
         };
-        self.last_action = action;
+        self.last_action = self.current_action.clone();
+        self.current_action = Action::none();
 
-        Ok(())
+        if self.next_action.is_some() {
+            self.step_action(self.next_action.as_ref().unwrap().clone())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn try_draw_random_tile(&mut self) -> Tile {
+        let mut rng = rand::thread_rng();
+        self.yama.choose(&mut rng).unwrap().clone()
     }
 }
