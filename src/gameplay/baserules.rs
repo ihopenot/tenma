@@ -32,5 +32,31 @@ pub struct BasePostGameStartEnterTsumo {
 }
 #[make_rulefor(BasePostGameStartEnterTsumo)]
 fn pass(&self, game_state: &GameState) -> Effect {
-    Effect::new_base(EnumEffect::ChangeState(EnumGameState::Tsumo))
+    Effect::new(
+        EnumEffect::ChangeState(EnumGameState::Tsumo),
+        EnumEffectLevel::Must,
+        100,
+    )
+}
+
+pub struct BasePreTsumoRandomTsumo {
+    pub name: &'static str,
+}
+#[make_rulefor(BasePreTsumoRandomTsumo)]
+fn pass(&self, game_state: &GameState) -> Effect {
+    Effect::new_base(EnumEffect::RandomTsumo)
+}
+
+pub struct BasePreTsumoStateCheck {
+    pub name: &'static str,
+}
+#[make_rulefor(BasePreTsumoStateCheck)]
+fn pass(&self, game_state: &GameState) -> Effect {
+    if game_state.state != EnumGameState::Tsumo
+        || game_state.current_action.player != game_state.current_player
+    {
+        Effect::deny()
+    } else {
+        Effect::none()
+    }
 }

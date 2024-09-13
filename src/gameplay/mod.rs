@@ -48,6 +48,12 @@ mod tests {
             .push(Box::new(BasePostGameStartEnterTsumo {
                 name: "gamestart_enter_tsumo",
             }));
+        ruleset.tsumo_rules.push(Box::new(BasePreTsumoRandomTsumo {
+            name: "pre_tsumo_random_tsumo",
+        }));
+        ruleset.tsumo_rules.push(Box::new(BasePreTsumoStateCheck {
+            name: "pre_tsumo_state_check",
+        }));
 
         ruleset
     }

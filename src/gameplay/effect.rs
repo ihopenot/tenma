@@ -1,6 +1,8 @@
 use std::{collections::HashMap, f32::consts::E};
 
-use super::{enums::EnumGameState, state::GameState};
+use crate::{config::Tsumo, gameplay::action::EnumAction};
+
+use super::{action::Action, enums::EnumGameState, state::GameState, tile::Tile};
 
 #[derive(Default, PartialEq, Ord, Eq, PartialOrd)]
 pub enum EnumEffectLevel {
@@ -32,6 +34,7 @@ pub enum EnumEffect {
     // start game
     SetScores([i32; 4]),
     ChangeState(EnumGameState),
+    RandomTsumo,
     #[default]
     None,
 }
@@ -55,15 +58,19 @@ impl Effect {
         Self::new(effect_type, EnumEffectLevel::Base, 100)
     }
 
+    pub fn deny() -> Self {
+        Self::new(EnumEffect::ActionDeny, EnumEffectLevel::Must, 100)
+    }
+
     // every effect shoud be stackable
     fn stack(&mut self, other: &Effect) {
         assert!(self.effect_type == other.effect_type);
 
         match self.effect_type {
-            EnumEffect::SetScores(_) | EnumEffect::ChangeState(_) => {
+            EnumEffect::SetScores(_) | EnumEffect::ChangeState(_) | EnumEffect::RandomTsumo => {
                 panic!("Not stackable effect");
             }
-            _ => {}
+            EnumEffect::ActionDeny | EnumEffect::None => {}
         }
     }
 
@@ -76,13 +83,30 @@ impl Effect {
             }
             EnumEffect::ChangeState(state) => {
                 game_state.state = state;
+                match state {
+                    EnumGameState::Tsumo => {
+                        game_state.next_action = Some(Action::new(
+                            game_state.current_player,
+                            EnumAction::Tsumo,
+                            Tile::unkown(),
+                            vec![],
+                        ));
+                    }
+                    _ => {
+                        panic!("Invalid state change");
+                    }
+                }
+            }
+
+            EnumEffect::RandomTsumo => {
+                assert!(game_state.current_action.act_type == EnumAction::Tsumo);
+                game_state.current_action.act_tile = game_state.try_draw_random_tile();
             }
 
             EnumEffect::ActionDeny => {
                 panic!("ActionDeny should not be applied directly");
             }
             EnumEffect::None => {}
-            _ => {}
         }
     }
 }
@@ -100,7 +124,8 @@ impl EffectSet {
         if effect.effect_type != EnumEffect::None {
             let mut stacked = false;
             for e in &mut self.effects {
-                if e.effect_type == effect.effect_type {
+                // only stack same type and same level effect
+                if e.effect_type == effect.effect_type && e.effect_level == effect.effect_level {
                     e.stack(&effect);
                     stacked = true;
                     break;
