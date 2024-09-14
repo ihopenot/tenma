@@ -26,8 +26,7 @@ impl RuleDict {
     }
 }
 
-type RulePass = fn(&GameState) -> Effect;
 pub trait Rule: Sync + Send {
     fn name(&self) -> &'static str;
-    fn pass(&self, game_state: &GameState) -> Effect;
+    fn pass(&self, game_state: &GameState) -> Vec<Effect>;
 }

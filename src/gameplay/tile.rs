@@ -1,4 +1,4 @@
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq)]
 pub struct Tile(u8);
 
 impl Tile {

@@ -5,7 +5,17 @@ use super::{
     enums::EnumGameState,
     rules::Rule,
     state::GameState,
+    tile::Tile,
 };
+
+pub struct BasePreKyokuStartSetYama {
+    pub name: &'static str,
+    pub tiles: Vec<Tile>,
+}
+#[make_rulefor(BasePreKyokuStartSetYama)]
+fn pass(&self, game_state: &GameState) -> Vec<Effect> {
+    vec![Effect::new_base(EnumEffect::SetYama(self.tiles.clone()))]
+}
 
 // Game start rules
 pub struct BasePreGameStartInitScores {
@@ -14,8 +24,8 @@ pub struct BasePreGameStartInitScores {
 }
 
 #[make_rulefor(BasePreGameStartInitScores)]
-fn pass(&self, game_state: &GameState) -> Effect {
-    Effect::new_base(EnumEffect::SetScores(self.scores))
+fn pass(&self, game_state: &GameState) -> Vec<Effect> {
+    vec![Effect::new_base(EnumEffect::SetScores(self.scores))]
 }
 // impl Rule for BaseGameStartInitScores {
 //     fn name(&self) -> &'static str {
@@ -31,32 +41,32 @@ pub struct BasePostGameStartEnterTsumo {
     pub name: &'static str,
 }
 #[make_rulefor(BasePostGameStartEnterTsumo)]
-fn pass(&self, game_state: &GameState) -> Effect {
-    Effect::new(
+fn pass(&self, game_state: &GameState) -> Vec<Effect> {
+    vec![Effect::new(
         EnumEffect::ChangeState(EnumGameState::Tsumo),
         EnumEffectLevel::Must,
         100,
-    )
+    )]
 }
 
 pub struct BasePreTsumoRandomTsumo {
     pub name: &'static str,
 }
 #[make_rulefor(BasePreTsumoRandomTsumo)]
-fn pass(&self, game_state: &GameState) -> Effect {
-    Effect::new_base(EnumEffect::RandomTsumo)
+fn pass(&self, game_state: &GameState) -> Vec<Effect> {
+    vec![Effect::new_base(EnumEffect::RandomTsumo)]
 }
 
 pub struct BasePreTsumoStateCheck {
     pub name: &'static str,
 }
 #[make_rulefor(BasePreTsumoStateCheck)]
-fn pass(&self, game_state: &GameState) -> Effect {
+fn pass(&self, game_state: &GameState) -> Vec<Effect> {
     if game_state.state != EnumGameState::Tsumo
         || game_state.current_action.player != game_state.current_player
     {
-        Effect::deny()
+        vec![Effect::deny()]
     } else {
-        Effect::none()
+        vec![Effect::none()]
     }
 }

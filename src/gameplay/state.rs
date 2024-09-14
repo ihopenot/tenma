@@ -90,22 +90,22 @@ impl GameState {
             match phase {
                 EnumRulePhase::PreGameStart => {
                     for r in &rule.gamestart_rules {
-                        effects.add_effect(r.pass(self));
+                        effects.add_effects(r.pass(self));
                     }
                 }
                 EnumRulePhase::PreKyokuStart => {
                     for r in &rule.kyokustart_rules {
-                        effects.add_effect(r.pass(self));
+                        effects.add_effects(r.pass(self));
                     }
                 }
                 EnumRulePhase::PreTsumo => {
                     for r in &rule.tsumo_rules {
-                        effects.add_effect(r.pass(self));
+                        effects.add_effects(r.pass(self));
                     }
                 }
                 EnumRulePhase::PreDahai => {
                     for r in &rule.dahai_rules {
-                        effects.add_effect(r.pass(self));
+                        effects.add_effects(r.pass(self));
                     }
                 }
                 _ => return Err(Error::PhaseNotSupported),

@@ -31,9 +31,13 @@ pub struct EffectSet {
 #[derive(Default, PartialEq)]
 pub enum EnumEffect {
     ActionDeny, // deny an action, must be level MUST
+
     // start game
+    SetYama(Vec<Tile>),
     SetScores([i32; 4]),
     ChangeState(EnumGameState),
+
+    // tsumo
     RandomTsumo,
     #[default]
     None,
@@ -67,7 +71,10 @@ impl Effect {
         assert!(self.effect_type == other.effect_type);
 
         match self.effect_type {
-            EnumEffect::SetScores(_) | EnumEffect::ChangeState(_) | EnumEffect::RandomTsumo => {
+            EnumEffect::SetScores(_)
+            | EnumEffect::ChangeState(_)
+            | EnumEffect::RandomTsumo
+            | EnumEffect::SetYama(_) => {
                 panic!("Not stackable effect");
             }
             EnumEffect::ActionDeny | EnumEffect::None => {}
@@ -75,14 +82,17 @@ impl Effect {
     }
 
     fn apply(&self, game_state: &mut GameState) {
-        match self.effect_type {
+        match &self.effect_type {
+            EnumEffect::SetYama(tiles) => {
+                game_state.yama = tiles.clone();
+            }
             EnumEffect::SetScores(scores) => {
                 for i in 0..4 {
                     game_state.players[i].score = scores[i];
                 }
             }
             EnumEffect::ChangeState(state) => {
-                game_state.state = state;
+                game_state.state = state.clone();
                 match state {
                     EnumGameState::Tsumo => {
                         game_state.next_action = Some(Action::new(
@@ -114,6 +124,13 @@ impl Effect {
 impl EffectSet {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn add_effects(&mut self, mut effects: Vec<Effect>) {
+        while effects.len() > 0 {
+            let e = effects.pop().unwrap();
+            self.add_effect(e);
+        }
     }
 
     pub fn add_effect(&mut self, effect: Effect) {
