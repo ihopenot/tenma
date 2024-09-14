@@ -11,11 +11,12 @@ pub enum Error {
 #[derive(Default, PartialEq, Clone, Copy)]
 pub enum EnumGameState {
     #[default]
-    NotStarted,
+    GameStart,
+    KyokuStart,
     Tsumo,
     Dahai,
     Naki,
-    WaitNewKyoku,
+    KyokuEnd,
 }
 
 #[derive(Default, PartialEq, Clone, Copy)]

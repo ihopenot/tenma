@@ -37,10 +37,10 @@ fn pass(&self, game_state: &GameState) -> Vec<Effect> {
 //     }
 // }
 
-pub struct BasePostGameStartEnterTsumo {
+pub struct BasePostKyokuStartEnterTsumo {
     pub name: &'static str,
 }
-#[make_rulefor(BasePostGameStartEnterTsumo)]
+#[make_rulefor(BasePostKyokuStartEnterTsumo)]
 fn pass(&self, game_state: &GameState) -> Vec<Effect> {
     vec![Effect::new(
         EnumEffect::ChangeState(EnumGameState::Tsumo),
