@@ -44,4 +44,36 @@ impl Action {
             ..Default::default()
         }
     }
+    pub fn start_kyoku() -> Self {
+        Self {
+            act_type: EnumAction::KyokuStart,
+            ..Default::default()
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! act2prephase {
+    ($st:expr) => {
+        match $st.act_type {
+            EnumAction::GameStart => EnumRulePhase::PreGameStart,
+            EnumAction::KyokuStart => EnumRulePhase::PreKyokuStart,
+            EnumAction::Tsumo => EnumRulePhase::PreTsumo,
+            EnumAction::Dahai => EnumRulePhase::PreDahai,
+            _ => panic!("Action not supported"),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! act2postphase {
+    ($st:expr) => {
+        match $st.act_type {
+            EnumAction::GameStart => EnumRulePhase::PostGameStart,
+            EnumAction::KyokuStart => EnumRulePhase::PostKyokuStart,
+            EnumAction::Tsumo => EnumRulePhase::PostTsumo,
+            EnumAction::Dahai => EnumRulePhase::PostDahai,
+            _ => panic!("Action not supported"),
+        }
+    };
 }

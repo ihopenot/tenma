@@ -12,7 +12,7 @@ pub fn game_engine_plugin(app: &mut App) {
 
 fn setup(mut commands: Commands) {
     let engine = GameEngine {
-        game_state: GameState::new(None),
+        game_state: GameState::new(),
     };
     commands.insert_resource(engine);
 }

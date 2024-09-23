@@ -1,5 +1,7 @@
-#[derive(Default, Clone, Copy, PartialEq)]
-pub struct Tile(u8);
+use crate::tu8;
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct Tile(pub u8);
 
 impl Tile {
     pub fn new(tile: u8) -> Self {
@@ -11,12 +13,22 @@ impl Tile {
     }
 
     pub fn unkown() -> Self {
+        Self(tu8!(-))
+    }
+
+    pub fn none() -> Self {
         Self(255)
     }
 }
 
+impl Default for Tile {
+    fn default() -> Self {
+        Self::none()
+    }
+}
+
 #[macro_export]
-macro_rules! tuid {
+macro_rules! tu8 {
     (1m) => {
         0_u8
     };
@@ -148,4 +160,15 @@ macro_rules! tuid {
     ($($_:tt)*) => {
         ::std::compile_error!("invalid tile pattern");
     }
+}
+
+/// Used for making const tile IDs in usize.
+#[macro_export]
+macro_rules! tuz {
+    ($s:tt) => {
+        $crate::tu8!($s) as usize
+    };
+    ($first:tt, $($left:tt),*) => {
+        [$crate::tuz!($first), $($crate::tuz!($left)),*]
+    };
 }

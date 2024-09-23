@@ -1,8 +1,15 @@
 use std::{collections::HashMap, f32::consts::E};
 
+use bevy::scene::ron::de;
+
 use crate::{config::Tsumo, gameplay::action::EnumAction};
 
-use super::{action::Action, enums::EnumGameState, state::GameState, tile::Tile};
+use super::{
+    action::Action,
+    enums::EnumGameState,
+    state::{DeltaGameState, GameState},
+    tile::Tile,
+};
 
 #[derive(Default, PartialEq, Ord, Eq, PartialOrd)]
 pub enum EnumEffectLevel {
@@ -19,7 +26,6 @@ pub enum EnumEffectLevel {
 #[derive(Default)]
 pub struct Effect {
     pub effect_type: EnumEffect,
-    pub effect_prob: u8, // 0 - 100
     pub effect_level: EnumEffectLevel,
 }
 
@@ -37,6 +43,9 @@ pub enum EnumEffect {
     SetScores([i32; 4]),
     ChangeState(EnumGameState),
 
+    // start kyoku
+    RevealDora(u8),
+
     // tsumo
     RandomTsumo,
     #[default]
@@ -48,10 +57,9 @@ impl Effect {
         Self::default()
     }
 
-    pub fn new(effect_type: EnumEffect, effect_level: EnumEffectLevel, effect_prob: u8) -> Self {
+    pub fn new(effect_type: EnumEffect, effect_level: EnumEffectLevel) -> Self {
         Self {
             effect_type,
-            effect_prob,
             effect_level,
             ..Default::default()
         }
@@ -59,11 +67,15 @@ impl Effect {
 
     // base rule
     pub fn new_base(effect_type: EnumEffect) -> Self {
-        Self::new(effect_type, EnumEffectLevel::Base, 100)
+        Self::new(effect_type, EnumEffectLevel::Base)
+    }
+
+    pub fn new_change_state(state: EnumGameState) -> Self {
+        Self::new(EnumEffect::ChangeState(state), EnumEffectLevel::Must)
     }
 
     pub fn deny() -> Self {
-        Self::new(EnumEffect::ActionDeny, EnumEffectLevel::Must, 100)
+        Self::new(EnumEffect::ActionDeny, EnumEffectLevel::Must)
     }
 
     // every effect shoud be stackable
@@ -77,40 +89,50 @@ impl Effect {
             | EnumEffect::SetYama(_) => {
                 panic!("Not stackable effect");
             }
+            EnumEffect::RevealDora(v) => {
+                if let EnumEffect::RevealDora(other_v) = other.effect_type {
+                    self.effect_type = EnumEffect::RevealDora(v + other_v);
+                }
+            }
             EnumEffect::ActionDeny | EnumEffect::None => {}
         }
     }
 
-    fn apply(&self, game_state: &mut GameState) {
+    fn apply(&self, game_state: &GameState, delta: &mut DeltaGameState) {
         match &self.effect_type {
             EnumEffect::SetYama(tiles) => {
-                game_state.yama = tiles.clone();
+                delta.add_yama = Some(tiles.clone());
+                // game_state.yama = tiles.clone();
             }
             EnumEffect::SetScores(scores) => {
-                for i in 0..4 {
-                    game_state.players[i].score = scores[i];
-                }
+                delta.set_score = Some(scores.clone());
             }
-            EnumEffect::ChangeState(state) => {
-                game_state.state = state.clone();
-                match state {
-                    EnumGameState::Tsumo => {
-                        game_state.next_action = Some(Action::new(
-                            game_state.current_player,
-                            EnumAction::Tsumo,
-                            Tile::unkown(),
-                            vec![],
-                        ));
-                    }
-                    _ => {
-                        panic!("Invalid state change");
-                    }
+            EnumEffect::ChangeState(state) => match state {
+                EnumGameState::Tsumo => {
+                    delta.next_state = Some(*state);
+                    delta.next_action = Some(Action::new(
+                        game_state.current_player,
+                        EnumAction::None,
+                        Tile::unkown(),
+                        vec![],
+                    ));
                 }
-            }
+                _ => {
+                    panic!("Invalid state change");
+                }
+            },
 
             EnumEffect::RandomTsumo => {
                 assert!(game_state.current_action.act_type == EnumAction::Tsumo);
-                game_state.current_action.act_tile = game_state.try_draw_random_tile();
+                delta.tsumo_tile = Some(game_state.try_draw_random_tile());
+            }
+
+            EnumEffect::RevealDora(v) => {
+                let mut new_dora = Vec::new();
+                for _ in 0..*v {
+                    new_dora.push(game_state.try_draw_random_tile());
+                }
+                delta.new_dora = Some(new_dora);
             }
 
             EnumEffect::ActionDeny => {
@@ -163,6 +185,18 @@ impl EffectSet {
     pub fn apply(&mut self, game_state: &mut GameState) {
         self.effects
             .sort_by(|a, b| a.effect_level.cmp(&b.effect_level));
-        self.effects.iter().for_each(|e| e.apply(game_state));
+
+        let mut delta = DeltaGameState::default();
+        self.effects
+            .iter()
+            .for_each(|e| e.apply(game_state, &mut delta));
+        match game_state.apply_delta(delta) {
+            Ok(new_state) => {
+                *game_state = new_state;
+            }
+            Err(_) => {
+                panic!("Invalid effect");
+            }
+        };
     }
 }
